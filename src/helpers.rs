@@ -1,4 +1,3 @@
-
 #[derive(Debug, PartialEq)]
 pub enum CodeUnit {
     SingleByte,
@@ -74,7 +73,6 @@ pub fn decode_quad(first: u8, second: u8, third: u8, fourth: u8) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     #[test]
     fn test_codepoint_from_u8() {
