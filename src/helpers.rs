@@ -1,27 +1,35 @@
 
-pub fn is_single(byte: u8) -> bool {
-    // matches bit pattern 0xxx_xxxx
-    return byte <= 0b0111_1111;
+#[derive(Debug, PartialEq)]
+pub enum CodeUnit {
+    SingleByte,
+    DoublePrefix,
+    TriplePrefix,
+    QuadPrefix,
+    Continuation,
 }
 
-pub fn is_double(byte: u8) -> bool {
-    // matches bit pattern 110x_xxxx
-    return byte >= 0b1100_0000 && byte <= 0b1101_1111;
+#[derive(Debug, PartialEq)]
+pub enum DecodeErr {
+    IncompleteCharacter,
+    InvalidCodePoint,
+    InvalidCodeUnit,
+    OverlongEncoding,
+    UnexpectedContinuation,
 }
 
-pub fn is_triple(byte: u8) -> bool {
-    // matches bit pattern 1110_xxxx
-    return byte >= 0b1110_0000 && byte <= 0b1110_1111;
-}
+impl TryFrom<u8> for CodeUnit {
+    type Error = DecodeErr;
 
-pub fn is_quad(byte: u8) -> bool {
-    // matches bit pattern 1111_0xxx
-    return byte >= 0b1111_0000 && byte <= 0b1111_0111;
-}
-
-pub fn is_continuation(byte: u8) -> bool {
-    // matches bit pattern 10xx_xxxx
-    return byte >= 0b1000_0000 && byte <= 0b1011_1111;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0..=0b0111_1111 => Ok(CodeUnit::SingleByte),
+            0b1000_0000..=0b1011_1111 => Ok(CodeUnit::Continuation),
+            0b1100_0000..=0b1101_1111 => Ok(CodeUnit::DoublePrefix),
+            0b1110_0000..=0b1110_1111 => Ok(CodeUnit::TriplePrefix),
+            0b1111_0000..=0b1111_0111 => Ok(CodeUnit::QuadPrefix),
+            _ => Err(DecodeErr::InvalidCodeUnit)
+        }
+    }
 }
 
 pub fn is_valid_codepoint(code_point: u32) -> bool {
@@ -39,7 +47,6 @@ const CLEAR_123456: u8 = 0b0000_0011;
 const CLEAR_12378: u8 = 0b0001_1100;
 const CLEAR_345678: u8 = 0b1100_0000;
 const CLEAR_5678: u8 = 0b1111_0000;
-
 
 pub fn decode_double(first: u8, second: u8) -> u32 {
     // 110a_aaaa 10bb_bbbb -> 0000_0aaa aabb_bbbb
@@ -68,43 +75,25 @@ pub fn decode_quad(first: u8, second: u8, third: u8, fourth: u8) -> u32 {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_is_single() {
-        assert!(is_single(0));
-        assert!(is_single(127));
-        assert_eq!(is_single(128), false);
-    }
 
     #[test]
-    fn test_is_double() {
-        assert!(is_double(192));
-        assert!(is_double(223));
-        assert_eq!(is_double(191), false);
-        assert_eq!(is_double(224), false);
-    }
+    fn test_codepoint_from_u8() {
+        assert_eq!(CodeUnit::try_from(0), Ok(CodeUnit::SingleByte));
+        assert_eq!(CodeUnit::try_from(127), Ok(CodeUnit::SingleByte));
 
-    #[test]
-    fn test_is_triple() {
-        assert!(is_triple(224));
-        assert!(is_triple(239));
-        assert_eq!(is_triple(223), false);
-        assert_eq!(is_triple(240), false);
-    }
+        assert_eq!(CodeUnit::try_from(128), Ok(CodeUnit::Continuation));
+        assert_eq!(CodeUnit::try_from(191), Ok(CodeUnit::Continuation));
 
-    #[test]
-    fn test_is_quad() {
-        assert!(is_quad(240));
-        assert!(is_quad(247));
-        assert_eq!(is_quad(239), false);
-        assert_eq!(is_quad(248), false);
-    }
+        assert_eq!(CodeUnit::try_from(192), Ok(CodeUnit::DoublePrefix));
+        assert_eq!(CodeUnit::try_from(223), Ok(CodeUnit::DoublePrefix));
 
-    #[test]
-    fn test_is_continuation() {
-        assert!(is_continuation(128));
-        assert!(is_continuation(191));
-        assert_eq!(is_continuation(127), false);
-        assert_eq!(is_continuation(192), false);
+        assert_eq!(CodeUnit::try_from(224), Ok(CodeUnit::TriplePrefix));
+        assert_eq!(CodeUnit::try_from(239), Ok(CodeUnit::TriplePrefix));
+
+        assert_eq!(CodeUnit::try_from(240), Ok(CodeUnit::QuadPrefix));
+        assert_eq!(CodeUnit::try_from(247), Ok(CodeUnit::QuadPrefix));
+
+        assert_eq!(CodeUnit::try_from(248), Err(DecodeErr::InvalidCodeUnit));
     }
 
     #[test]

@@ -1,39 +1,43 @@
 use crate::helpers::*;
 
-pub enum DecodeErr {
-    InvalidPrefix,
-    UnexpectedContinuation,
-    IncompleteCharacter,
-    OverlongEncoding,
-    InvalidCodePoint,
+fn bytes_remaining(code_unit: &CodeUnit) -> usize {
+    match code_unit {
+        CodeUnit::SingleByte => 0,
+        CodeUnit::DoublePrefix => 1,
+        CodeUnit::TriplePrefix => 2,
+        CodeUnit::QuadPrefix => 3,
+        _ => unreachable!()
+    }
 }
 
 pub fn validate(input: &[u8]) -> Result<(), DecodeErr> {
     let mut pos = 0;
     let len = input.len();
     while pos < len {
-        let first = input[pos];
-
-        if is_single(first) {
-            pos += 1;
-        } else {
-            let remaining = if is_double(first) { 1 } else if is_triple(first) { 2 } else if is_quad(first) { 3 } else { 9999 };
-            if pos + remaining >= len {
-                return Err(DecodeErr::IncompleteCharacter);
-            }
-            for i in 1..=remaining {
-                if !is_continuation(input[pos + i]) {
+        let code_unit = CodeUnit::try_from(input[pos])?;
+        match code_unit {
+            CodeUnit::SingleByte => { pos += 1; }
+            CodeUnit::Continuation => { return Err(DecodeErr::UnexpectedContinuation); }
+            _ => {
+                let remaining = bytes_remaining(&code_unit);
+                if pos + remaining >= len {
                     return Err(DecodeErr::IncompleteCharacter);
                 }
-            }
-            let code_point = match remaining {
-                1 => decode_double(first, input[pos + 1]),
-                2 => decode_triple(first, input[pos + 1], input[pos + 2]),
-                3 => decode_quad(first, input[pos + 1], input[pos + 3], input[pos + 4]),
-                _ => unreachable!()
-            };
-            if !is_valid_codepoint(code_point) {
-                return Err(DecodeErr::InvalidCodePoint);
+                for i in 1..=remaining {
+                    if let Ok(CodeUnit::Continuation) = CodeUnit::try_from(input[pos + 1]) {
+                        return Err(DecodeErr::IncompleteCharacter);
+                    }
+                }
+                let code_point = match code_unit {
+                    CodeUnit::DoublePrefix => decode_double(input[pos], input[pos + 1]),
+                    CodeUnit::TriplePrefix => decode_triple(input[pos], input[pos + 1], input[pos + 2]),
+                    CodeUnit::QuadPrefix => decode_quad(input[pos], input[pos + 1], input[pos + 3], input[pos + 4]),
+                    _ => unreachable!()
+                };
+                if !is_valid_codepoint(code_point) {
+                    return Err(DecodeErr::InvalidCodePoint);
+                }
+                pos += 1 + remaining;
             }
         }
     }
