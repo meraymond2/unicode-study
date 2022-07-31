@@ -30,6 +30,38 @@ fn is_valid_codepoint(code_point: u32) -> bool {
     return below_max_code_point && not_half_of_utf16_surrogate_pair;
 }
 
+
+const CLEAR_12: u8 = 0b0011_1111;
+const CLEAR_1234: u8 = 0b0000_1111;
+const CLEAR_12345: u8 = 0b0000_0111;
+const CLEAR_123456: u8 = 0b0000_0011;
+const CLEAR_12378: u8 = 0b0001_1100;
+const CLEAR_345678: u8 = 0b1100_0000;
+const CLEAR_5678: u8 = 0b1111_0000;
+
+fn decode_double(first: u8, second: u8) -> u32 {
+    // 110a_aaaa 10bb_bbbb -> 0000_0aaa aabb_bbbb
+    let high_byte = first >> 2 & CLEAR_12345;
+    let low_byte = (first << 6 & CLEAR_345678) | (second & CLEAR_12);
+    return u32::from_be_bytes([0, 0, high_byte, low_byte]);
+}
+
+fn decode_triple(first: u8, second: u8, third: u8) -> u32 {
+    // 1110_aaaa 10bb_bbbb 10cc_cccc -> aaaa_bbbb bbcc_cccc
+    let high_byte = (first << 4 & CLEAR_5678) | (second >> 2 & CLEAR_1234);
+    let low_byte = (second << 6 & CLEAR_345678) | (third & CLEAR_12);
+    return u32::from_be_bytes([0, 0, high_byte, low_byte]);
+}
+
+fn decode_quad(first: u8, second: u8, third: u8, fourth: u8) -> u32 {
+    // 1111_0aaa 10bb_bbbb 10cc_cccc 10dd_dddd -> 000a_aabb bbbb_cccc ccdd_dddd
+    let high_byte = (first << 2 & CLEAR_12378) | (second >> 4 & CLEAR_123456);
+    let middle_byte = (second << 4 & CLEAR_5678) | (third >> 2 & CLEAR_1234);
+    let low_byte = (third << 6 & CLEAR_345678) | (fourth & CLEAR_12);
+    return u32::from_be_bytes([0, high_byte, middle_byte, low_byte]);
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -85,5 +117,22 @@ mod tests {
         assert_eq!(is_valid_codepoint(0xD800), false);
         assert_eq!(is_valid_codepoint(0xDABC), false);
         assert_eq!(is_valid_codepoint(0xDFFF), false);
+    }
+
+    #[test]
+    fn test_decode_double() {
+        assert_eq!(decode_double(0b11000010, 0b10100011), 0xA3);
+    }
+
+    #[test]
+    fn test_decode_triple() {
+        assert_eq!(decode_triple(0b11100000, 0b10100100, 0b10111001), 0x939);
+        assert_eq!(decode_triple(0b11100010, 0b10000010, 0b10101100), 0x20AC);
+        assert_eq!(decode_triple(0b11101101, 0b10010101, 0b10011100), 0xD55C);
+    }
+
+    #[test]
+    fn test_decode_quad() {
+        assert_eq!(decode_quad(0b11110000, 0b10010000, 0b10001101, 0b10001000), 0x10348);
     }
 }
