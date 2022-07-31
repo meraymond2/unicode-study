@@ -1,4 +1,5 @@
 mod helpers;
+mod validate;
 
 #[cfg(test)]
 mod tests {

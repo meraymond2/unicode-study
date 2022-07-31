@@ -1,29 +1,30 @@
-fn is_single(byte: u8) -> bool {
+
+pub fn is_single(byte: u8) -> bool {
     // matches bit pattern 0xxx_xxxx
     return byte <= 0b0111_1111;
 }
 
-fn is_double(byte: u8) -> bool {
+pub fn is_double(byte: u8) -> bool {
     // matches bit pattern 110x_xxxx
     return byte >= 0b1100_0000 && byte <= 0b1101_1111;
 }
 
-fn is_triple(byte: u8) -> bool {
+pub fn is_triple(byte: u8) -> bool {
     // matches bit pattern 1110_xxxx
     return byte >= 0b1110_0000 && byte <= 0b1110_1111;
 }
 
-fn is_quad(byte: u8) -> bool {
+pub fn is_quad(byte: u8) -> bool {
     // matches bit pattern 1111_0xxx
     return byte >= 0b1111_0000 && byte <= 0b1111_0111;
 }
 
-fn is_continuation(byte: u8) -> bool {
+pub fn is_continuation(byte: u8) -> bool {
     // matches bit pattern 10xx_xxxx
     return byte >= 0b1000_0000 && byte <= 0b1011_1111;
 }
 
-fn is_valid_codepoint(code_point: u32) -> bool {
+pub fn is_valid_codepoint(code_point: u32) -> bool {
     // todo: non-characters
     let below_max_code_point = code_point <= 0x10FFFF;
     let not_half_of_utf16_surrogate_pair = code_point < 0xD800 || code_point > 0xDFFF;
@@ -39,21 +40,22 @@ const CLEAR_12378: u8 = 0b0001_1100;
 const CLEAR_345678: u8 = 0b1100_0000;
 const CLEAR_5678: u8 = 0b1111_0000;
 
-fn decode_double(first: u8, second: u8) -> u32 {
+
+pub fn decode_double(first: u8, second: u8) -> u32 {
     // 110a_aaaa 10bb_bbbb -> 0000_0aaa aabb_bbbb
     let high_byte = first >> 2 & CLEAR_12345;
     let low_byte = (first << 6 & CLEAR_345678) | (second & CLEAR_12);
     return u32::from_be_bytes([0, 0, high_byte, low_byte]);
 }
 
-fn decode_triple(first: u8, second: u8, third: u8) -> u32 {
+pub fn decode_triple(first: u8, second: u8, third: u8) -> u32 {
     // 1110_aaaa 10bb_bbbb 10cc_cccc -> aaaa_bbbb bbcc_cccc
     let high_byte = (first << 4 & CLEAR_5678) | (second >> 2 & CLEAR_1234);
     let low_byte = (second << 6 & CLEAR_345678) | (third & CLEAR_12);
     return u32::from_be_bytes([0, 0, high_byte, low_byte]);
 }
 
-fn decode_quad(first: u8, second: u8, third: u8, fourth: u8) -> u32 {
+pub fn decode_quad(first: u8, second: u8, third: u8, fourth: u8) -> u32 {
     // 1111_0aaa 10bb_bbbb 10cc_cccc 10dd_dddd -> 000a_aabb bbbb_cccc ccdd_dddd
     let high_byte = (first << 2 & CLEAR_12378) | (second >> 4 & CLEAR_123456);
     let middle_byte = (second << 4 & CLEAR_5678) | (third >> 2 & CLEAR_1234);
