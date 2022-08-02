@@ -115,6 +115,7 @@ mod tests {
 
     #[test]
     fn test_decode_triple() {
+        assert_eq!(decode_triple(0xEF, 0xBF, 0xBD), 0xFFFD);
         assert_eq!(decode_triple(0b11100000, 0b10100100, 0b10111001), 0x939);
         assert_eq!(decode_triple(0b11100010, 0b10000010, 0b10101100), 0x20AC);
         assert_eq!(decode_triple(0b11101101, 0b10010101, 0b10011100), 0xD55C);
