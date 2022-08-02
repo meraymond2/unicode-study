@@ -20,23 +20,23 @@ fn is_overlong(code_point: u32, code_unit: &CodeUnit) -> bool {
     }
 }
 
-pub fn validate(input: &[u8]) -> Result<(), DecodeErr> {
+pub fn validate(input: &[u8]) -> Result<(), (DecodeErr, usize)> {
     let mut pos = 0;
     let len = input.len();
     while pos < len {
-        let code_unit = CodeUnit::try_from(input[pos])?;
+        let code_unit = CodeUnit::try_from(input[pos]).map_err(|de| (de, pos))?;
         match code_unit {
             CodeUnit::SingleByte => { pos += 1; }
-            CodeUnit::Continuation => { return Err(DecodeErr::UnexpectedContinuation); }
+            CodeUnit::Continuation => { return Err((DecodeErr::UnexpectedContinuation, pos)); }
             _ => {
                 let remaining = bytes_remaining(&code_unit);
                 if pos + remaining >= len {
-                    return Err(DecodeErr::IncompleteCharacter);
+                    return Err((DecodeErr::IncompleteCharacter, pos));
                 }
                 for i in 1..=remaining {
-                    match CodeUnit::try_from(input[pos + i])? {
+                    match CodeUnit::try_from(input[pos + i]).map_err(|de| (de, pos))? {
                         CodeUnit::Continuation => {}
-                        _ => { return Err(DecodeErr::IncompleteCharacter); }
+                        _ => { return Err((DecodeErr::IncompleteCharacter, pos)); }
                     }
                 }
                 let code_point = match code_unit {
@@ -46,10 +46,10 @@ pub fn validate(input: &[u8]) -> Result<(), DecodeErr> {
                     _ => unreachable!()
                 };
                 if !is_valid_codepoint(code_point) {
-                    return Err(DecodeErr::InvalidCodePoint);
+                    return Err((DecodeErr::InvalidCodePoint, pos));
                 }
                 if is_overlong(code_point, &code_unit) {
-                    return Err(DecodeErr::OverlongEncoding);
+                    return Err((DecodeErr::OverlongEncoding(code_point), pos));
                 }
                 pos += 1 + remaining;
             }
@@ -66,6 +66,16 @@ mod tests {
     #[test]
     fn test_validate() {
         // https://github.com/rust-lang/rust/blob/master/library/alloc/tests/str.rs
+        let xs = b"hello";
+        assert!(validate(xs).is_ok());
+        let xs = "ศไทย中华Việt Nam".as_bytes();
+        assert!(validate(xs).is_ok());
+        let xs = b"hello\xFF";
+        assert!(validate(xs).is_err());
+
+        assert_eq!(validate(&[0xF0, 0x80, 0x80, 0x41]), Err((DecodeErr::IncompleteCharacter, 0)));
+        assert_eq!(validate(&[0xC2, 0x41, 0x42]), Err((DecodeErr::IncompleteCharacter, 0)));
+
         // invalid prefix
         assert!((validate(&[0x80]).is_err()));
         // invalid 2 byte prefix

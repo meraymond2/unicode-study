@@ -7,12 +7,24 @@ pub enum CodeUnit {
     Continuation,
 }
 
+impl CodeUnit {
+    pub fn len(&self) -> usize {
+        match self {
+            CodeUnit::SingleByte => 1,
+            CodeUnit::DoublePrefix => 2,
+            CodeUnit::TriplePrefix => 3,
+            CodeUnit::QuadPrefix => 4,
+            CodeUnit::Continuation => unreachable!(),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum DecodeErr {
     IncompleteCharacter,
     InvalidCodePoint,
     InvalidCodeUnit,
-    OverlongEncoding,
+    OverlongEncoding(u32),
     UnexpectedContinuation,
 }
 
