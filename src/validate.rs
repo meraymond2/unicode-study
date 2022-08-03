@@ -34,8 +34,8 @@ pub fn validate(input: &[u8]) -> Result<(), (DecodeErr, usize)> {
                     return Err((DecodeErr::IncompleteCharacter, pos));
                 }
                 for i in 1..=remaining {
-                    match CodeUnit::try_from(input[pos + i]).map_err(|de| (de, pos))? {
-                        CodeUnit::Continuation => {}
+                    match CodeUnit::try_from(input[pos + i]) {
+                        Ok(CodeUnit::Continuation) => {}
                         _ => { return Err((DecodeErr::IncompleteCharacter, pos)); }
                     }
                 }
