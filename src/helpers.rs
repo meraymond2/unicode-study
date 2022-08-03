@@ -24,7 +24,7 @@ pub enum DecodeErr {
     IncompleteCharacter,
     InvalidCodePoint,
     InvalidCodeUnit,
-    OverlongEncoding(u32),
+    OverlongEncoding,
     UnexpectedContinuation,
 }
 

@@ -34,8 +34,8 @@ pub fn fix(input: Vec<u8>) -> Vec<u8> {
                         let code_unit = CodeUnit::try_from(input[pos]).unwrap();
                         pos += code_unit.len();
                     }
-                    DecodeErr::OverlongEncoding(code_point) => {
-                        fixed.extend_from_slice(&encode(code_point));
+                    DecodeErr::OverlongEncoding => {
+                        fixed.extend_from_slice(REPLACEMENT);
                         let code_unit = CodeUnit::try_from(input[pos]).unwrap();
                         pos += code_unit.len();
                     }
@@ -55,9 +55,9 @@ mod tests {
 
     #[test]
     fn test_fix() {
-        assert_eq!(fix(vec![0xc0, 0x80]), vec![0x0]);
-        assert_eq!(fix(vec![0xc0, 0xAE]), vec![0x2E]);
-        assert_eq!(fix(vec![0xF0, 0x80, 0x80, 0x41]), vec![0xEF, 0xBF, 0xBE, 0x41]);
+        assert_eq!(fix(vec![0xc0, 0x80]), REPLACEMENT);
+        assert_eq!(fix(vec![0xc0, 0xAE]), REPLACEMENT);
+        assert_eq!(fix(vec![0xF0, 0x80, 0x80, 0x41]), vec![0xEF, 0xBF, 0xBD, 0x41]);
 
         let xs = b"hello".to_vec();
         let ys = "hello".as_bytes();
@@ -71,41 +71,30 @@ mod tests {
         let ys = "Hello\u{FFFD} There\u{FFFD} Goodbye".as_bytes();
         assert_eq!(fix(xs), ys);
 
-        // let xs = b"Hello\xC0\x80 There\xE6\x83 Goodbye";
-        // assert_eq!(
-        //     fix(xs),
-        //     String::from("Hello\u{FFFD}\u{FFFD} There\u{FFFD} Goodbye").as_bytes()
-        // );
-        //
-        // let xs = b"\xF5foo\xF5\x80bar";
-        // assert_eq!(
-        //     fix(xs),
-        //     String::from("\u{FFFD}foo\u{FFFD}\u{FFFD}bar").as_bytes()
-        // );
-        //
-        // let xs = b"\xF1foo\xF1\x80bar\xF1\x80\x80baz";
-        // assert_eq!(
-        //     fix(xs),
-        //     String::from("\u{FFFD}foo\u{FFFD}bar\u{FFFD}baz").as_bytes()
-        // );
-        //
-        // let xs = b"\xF4foo\xF4\x80bar\xF4\xBFbaz";
-        // assert_eq!(
-        //     fix(xs),
-        //     String::from("\u{FFFD}foo\u{FFFD}bar\u{FFFD}\u{FFFD}baz").as_bytes()
-        // );
-        //
-        // let xs = b"\xF0\x80\x80\x80foo\xF0\x90\x80\x80bar";
-        // assert_eq!(
-        //     fix(xs),
-        //     String::from("\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}foo\u{10000}bar").as_bytes()
-        // );
-        //
+        // Most of these are replacing each error byte. I'm replacing the subsequence.
+
+        let xs = b"Hello\xC0\x80 There\xE6\x83 Goodbye".to_vec();
+        // assert_eq!(fix(xs), "Hello\u{FFFD}\u{FFFD} There\u{FFFD} Goodbye".as_bytes());
+        assert_eq!(fix(xs), "Hello\u{FFFD} There\u{FFFD} Goodbye".as_bytes());
+
+        let xs = b"\xF5foo\xF5\x80bar".to_vec();
+        // assert_eq!(fix(xs), "\u{FFFD}foo\u{FFFD}\u{FFFD}bar".as_bytes());
+        assert_eq!(fix(xs), "\u{FFFD}foo\u{FFFD}bar".as_bytes());
+
+        let xs = b"\xF1foo\xF1\x80bar\xF1\x80\x80baz".to_vec();
+        assert_eq!(fix(xs), "\u{FFFD}foo\u{FFFD}bar\u{FFFD}baz".as_bytes());
+
+        let xs = b"\xF4foo\xF4\x80bar\xF4\xBFbaz".to_vec();
+        // assert_eq!(fix(xs), "\u{FFFD}foo\u{FFFD}bar\u{FFFD}\u{FFFD}baz".as_bytes());
+        assert_eq!(fix(xs), "\u{FFFD}foo\u{FFFD}bar\u{FFFD}baz".as_bytes());
+
+        let xs = b"\xF0\x80\x80\x80foo\xF0\x90\x80\x80bar".to_vec();
+        // assert_eq!(fix(xs), "\u{FFFD}\u{FFFD}\u{FFFD}\u{FFFD}foo\u{10000}bar".as_bytes());
+        assert_eq!(fix(xs), "\u{FFFD}foo\u{10000}bar".as_bytes());
+
         // // surrogates
-        // let xs = b"\xED\xA0\x80foo\xED\xBF\xBFbar";
-        // assert_eq!(
-        //     fix(xs),
-        //     String::from("\u{FFFD}\u{FFFD}\u{FFFD}foo\u{FFFD}\u{FFFD}\u{FFFD}bar").as_bytes()
-        // );
+        let xs = b"\xED\xA0\x80foo\xED\xBF\xBFbar".to_vec();
+        // assert_eq!(fix(xs), "\u{FFFD}\u{FFFD}\u{FFFD}foo\u{FFFD}\u{FFFD}\u{FFFD}bar".as_bytes());
+        assert_eq!(fix(xs), "\u{FFFD}foo\u{FFFD}bar".as_bytes());
     }
 }

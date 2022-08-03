@@ -49,7 +49,7 @@ pub fn validate(input: &[u8]) -> Result<(), (DecodeErr, usize)> {
                     return Err((DecodeErr::InvalidCodePoint, pos));
                 }
                 if is_overlong(code_point, &code_unit) {
-                    return Err((DecodeErr::OverlongEncoding(code_point), pos));
+                    return Err((DecodeErr::OverlongEncoding, pos));
                 }
                 pos += 1 + remaining;
             }
