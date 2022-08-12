@@ -82,27 +82,27 @@ pub fn decode_quad(first: u8, second: u8, third: u8, fourth: u8) -> u32 {
 }
 
 
-// pub fn encode(code_point: u32) -> Vec<u8> {
-//     let bytes = code_point.to_be_bytes();
-//     match code_point {
-//         0..=0x007F => vec![code_point as u8],
-//         0x0080..=0x07FF => {
-//             // 0000_0aaa aabb_bbbb -> 110a_aaaa 10bb_bbbb
-//             let first_byte = 0b1100_0000 | (bytes[0] << 2) | (bytes[1] >> 6);
-//             let second_byte = bytes[1] | 0b1000_0000 & 0b1011_1111;
-//             vec![first_byte, second_byte]
-//         }
-//         0x0800..=0xFFFF => {
-//             // aaaa_bbbb bbcc_cccc -> 1110_aaaa 10bb_bbbb 10cc_cccc
-//             let first_byte = 0b1110_0000 | (bytes[0] >> 4);
-//             let second_byte = 0b1000_0000 | (bytes[0] << 2 & 0b00111100) | (bytes[1] >> 6);
-//             let third_byte = 0b1000_0000 | (bytes[1] & 0b0011_1111);
-//             vec![first_byte, second_byte, third_byte]
-//         }
-//         0x10000..=0x10FFFF => todo!(),
-//         _ => unimplemented!(),
-//     }
-// }
+pub fn encode_utf8(code_point: u32) -> Vec<u8> {
+    let bytes = code_point.to_be_bytes();
+    match code_point {
+        0..=0x007F => vec![code_point as u8],
+        0x0080..=0x07FF => {
+            // 0000_0aaa aabb_bbbb -> 110a_aaaa 10bb_bbbb
+            let first_byte = 0b1100_0000 | (bytes[0] << 2) | (bytes[1] >> 6);
+            let second_byte = bytes[1] | 0b1000_0000 & 0b1011_1111;
+            vec![first_byte, second_byte]
+        }
+        0x0800..=0xFFFF => {
+            // aaaa_bbbb bbcc_cccc -> 1110_aaaa 10bb_bbbb 10cc_cccc
+            let first_byte = 0b1110_0000 | (bytes[0] >> 4);
+            let second_byte = 0b1000_0000 | (bytes[0] << 2 & 0b00111100) | (bytes[1] >> 6);
+            let third_byte = 0b1000_0000 | (bytes[1] & 0b0011_1111);
+            vec![first_byte, second_byte, third_byte]
+        }
+        0x10000..=0x10FFFF => todo!(),
+        _ => unimplemented!(),
+    }
+}
 
 #[cfg(test)]
 mod tests {

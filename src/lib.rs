@@ -2,6 +2,6 @@ mod helpers;
 mod validate;
 pub mod fix;
 mod ucd;
-mod normalise;
+pub mod normalise;
 mod cp_iter;
 
