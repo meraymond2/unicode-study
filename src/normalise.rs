@@ -303,11 +303,11 @@ mod tests {
         assert_eq!(c[3], to_nfc(&c[4]));
 
         // 1100 AC00 11A8 11A8;1100 AC01 11A8;1100 1100 1161 11A8 11A8;1100 AC01 11A8;1100 1100 1161 11A8 11A8; # (ᄀ각ᆨ; ᄀ각ᆨ; ᄀ각ᆨ; ᄀ각ᆨ; ᄀ각ᆨ; ) HANGUL CHOSEONG KIYEOK, HANGUL SYLLABLE GA, HANGUL JONGSEONG KIYEOK, HANGUL JONGSEONG KIYEOK
-        // let c: Vec<Vec<u32>> = vec![vec![0x1100, 0xAC00, 0x11A8, 0x11A8], vec![0x1100, 0xAC01, 0x11A8], vec![0x1100, 0x1100, 0x1161, 0x11A8, 0x11A8], vec![0x1100, 0xAC01, 0x11A8], vec![0x1100, 0x1100, 0x1161, 0x11A8, 0x11A]];
-        // assert_eq!(c[1], to_nfc(&c[0]));
-        // assert_eq!(c[1], to_nfc(&c[1]));
-        // assert_eq!(c[1], to_nfc(&c[2]));
-        // assert_eq!(c[3], to_nfc(&c[3]));
-        // assert_eq!(c[3], to_nfc(&c[4]));
+        let c: Vec<Vec<u32>> = vec![vec![0x1100, 0xAC00, 0x11A8, 0x11A8], vec![0x1100, 0xAC01, 0x11A8], vec![0x1100, 0x1100, 0x1161, 0x11A8, 0x11A8], vec![0x1100, 0xAC01, 0x11A8], vec![0x1100, 0x1100, 0x1161, 0x11A8, 0x11A8]];
+        assert_eq!(c[1], to_nfc(&c[0]));
+        assert_eq!(c[1], to_nfc(&c[1]));
+        assert_eq!(c[1], to_nfc(&c[2]));
+        assert_eq!(c[3], to_nfc(&c[3]));
+        assert_eq!(c[3], to_nfc(&c[4]));
     }
 }
