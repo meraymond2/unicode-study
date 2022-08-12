@@ -62,6 +62,10 @@ fn to_nfc(cps: &Vec<u32>) -> Vec<u32> {
     loop {
         if try_compose {
             try_compose = false;
+            // TODO: this fails one of the cases, because the pairs aren't just Starter..next-starter.
+            // If there are multiple combining marks in a row that have the same ccc, then that will block it.
+            // e.g. 0x61 0x5ae 0x0300 is ok, the first and third compose, but 0x61 0x5ae 0x305 0x0300 won't
+            // because the 305 blocks the 300
             let next_starter_offset = decomposed[pos..].iter().skip(1).position(|cp| is_starter(*cp)).map(|offset| offset + 1).unwrap_or(decomposed.len() - pos);
             let char_seq_end = min(next_starter_offset + 1, decomposed.len() - pos);
             decomposed[pos..(pos + next_starter_offset)].sort_by(|a, b| combining_class(*a).cmp(&combining_class(*b)));
