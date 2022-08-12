@@ -22,7 +22,7 @@ lazy_static! {
     };
 
     // D114 For any given version of the Unicode Standard, the list of primary composites
-    // can be computed by extracting all canonical decomposable characters from
+    // can be computed by extracting all canonical decomposable characters (dt=can) from
     // UnicodeData.txt in the Unicode Character Database, adding the list of precom-
     // posed Hangul syllables (D132), and subtracting the list of Full Composition
     // Exclusions.
@@ -34,7 +34,7 @@ lazy_static! {
         HashMap::from_iter(pairs.into_iter())
     };
 
-    static ref DECOMPOSITION_MAPPINGS: HashMap<u32, [u32; 2]> = {
+    static ref DECOMPOSITION_MAPPINGS: HashMap<u32, Vec<u32>> = {
         let f = std::fs::File::open("resources/decomposition-mappings.json").unwrap();
         let rdr = std::io::BufReader::new(f);
         serde_json::from_reader(rdr).unwrap()
@@ -47,8 +47,8 @@ lazy_static! {
     };
 }
 
-pub fn decomposition_mapping(code_point: u32) -> Option<[u32; 2]> {
-    DECOMPOSITION_MAPPINGS.get(&code_point).map(|mapping| *mapping)
+pub fn decomposition_mapping(code_point: u32) -> Option<Vec<u32>> {
+    DECOMPOSITION_MAPPINGS.get(&code_point).map(|mapping| mapping.clone())
 }
 
 pub fn combining_class(code_point: u32) -> u8 {

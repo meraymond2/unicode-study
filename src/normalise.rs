@@ -100,7 +100,7 @@ mod tests {
         assert_eq!(quick_check(vec![0x61, 0xcc, 0x8a]), IsNormalised::Maybe);
     }
 
-    #[test]
+
     /*
     # CONFORMANCE:
     # 1. The following invariants must be true for all conformant implementations
@@ -109,205 +109,108 @@ mod tests {
     #      c2 ==  toNFC(c1) ==  toNFC(c2) ==  toNFC(c3)
     #      c4 ==  toNFC(c4) ==  toNFC(c5)
     */
+    fn conformance_test(c: Vec<Vec<u32>>) {
+        assert_eq!(c[1], to_nfc(&c[0]));
+        assert_eq!(c[1], to_nfc(&c[1]));
+        assert_eq!(c[1], to_nfc(&c[2]));
+        assert_eq!(c[3], to_nfc(&c[3]));
+        assert_eq!(c[3], to_nfc(&c[4]));
+    }
+
+    fn parse_line(line: &str) -> Vec<Vec<u32>> {
+        line.split(";").take(5).map(|block| block.split_whitespace().map(|s| u32::from_str_radix(s, 16).unwrap()).collect()).collect()
+    }
+
+    #[test]
     fn test_to_nfc() {
-        // 1E0A;1E0A;0044 0307;1E0A;0044 0307; # (Ḋ; Ḋ; D◌̇; Ḋ; D◌̇; ) LATIN CAPITAL LETTER D WITH DOT ABOVE
-        let c: Vec<Vec<u32>> = vec![vec![0x1E0A], vec![0x1E0A], vec![0x0044, 0x0307], vec![0x1E0A], vec![0x0044, 0x0307]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
+        let test_cases: Vec<Vec<Vec<u32>>> = std::fs::read_to_string(std::path::Path::new("resources/NormalizationTest.txt"))
+            .unwrap()
+            .split("\n")
+            .filter(|line| !line.starts_with("#") && !line.starts_with("@"))
+            .map(parse_line)
+            .collect();
 
-        // 1E0C;1E0C;0044 0323;1E0C;0044 0323; # (Ḍ; Ḍ; D◌̣; Ḍ; D◌̣; ) LATIN CAPITAL LETTER D WITH DOT BELOW
-        let c: Vec<Vec<u32>> = vec![vec![0x1E0C], vec![0x1E0C], vec![0x0044, 0x0323], vec![0x1E0C], vec![0x0044, 0x0323]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
+        // conformance_test(vec![vec![0x00A0], vec![0x00A0],vec![0x00A0],vec![0x0020],vec![0x0020]]);
+        for case in test_cases {
+            conformance_test(case);
+        }
 
-        // 1E0A 0323;1E0C 0307;0044 0323 0307;1E0C 0307;0044 0323 0307; # (Ḋ◌̣; Ḍ◌̇; D◌̣◌̇; Ḍ◌̇; D◌̣◌̇; ) LATIN CAPITAL LETTER D WITH DOT ABOVE, COMBINING DOT BELOW
-        let c: Vec<Vec<u32>> = vec![vec![0x1E0A, 0x0323], vec![0x1E0C, 0x0307], vec![0x0044, 0x0323, 0x0307], vec![0x1E0C, 0x0307], vec![0x0044, 0x0323, 0x0307]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 1E0C 0307;1E0C 0307;0044 0323 0307;1E0C 0307;0044 0323 0307; # (Ḍ◌̇; Ḍ◌̇; D◌̣◌̇; Ḍ◌̇; D◌̣◌̇; ) LATIN CAPITAL LETTER D WITH DOT BELOW, COMBINING DOT ABOVE
-        let c: Vec<Vec<u32>> = vec![vec![0x1E0C, 0x0307], vec![0x1E0C, 0x0307], vec![0x0044, 0x0323, 0x0307], vec![0x1E0C, 0x0307], vec![0x0044, 0x0323, 0x0307]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 0044 0307 0323;1E0C 0307;0044 0323 0307;1E0C 0307;0044 0323 0307; # (D◌̇◌̣; Ḍ◌̇; D◌̣◌̇; Ḍ◌̇; D◌̣◌̇; ) LATIN CAPITAL LETTER D, COMBINING DOT ABOVE, COMBINING DOT BELOW
-        let c: Vec<Vec<u32>> = vec![vec![0x0044, 0x0307, 0x0323], vec![0x1E0C, 0x0307], vec![0x0044, 0x0323, 0x0307], vec![0x1E0C, 0x0307], vec![0x0044, 0x0323, 0x0307]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 0044 0323 0307;1E0C 0307;0044 0323 0307;1E0C 0307;0044 0323 0307; # (D◌̣◌̇; Ḍ◌̇; D◌̣◌̇; Ḍ◌̇; D◌̣◌̇; ) LATIN CAPITAL LETTER D, COMBINING DOT BELOW, COMBINING DOT ABOVE
-        let c: Vec<Vec<u32>> = vec![vec![0x0044, 0x0323, 0x0307], vec![0x1E0C, 0x0307], vec![0x0044, 0x0323, 0x0307], vec![0x1E0C, 0x0307], vec![0x0044, 0x0323, 0x0307]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 1E0A 031B;1E0A 031B;0044 031B 0307;1E0A 031B;0044 031B 0307; # (Ḋ◌̛; Ḋ◌̛; D◌̛◌̇; Ḋ◌̛; D◌̛◌̇; ) LATIN CAPITAL LETTER D WITH DOT ABOVE, COMBINING HORN
-        let c: Vec<Vec<u32>> = vec![vec![0x1E0A, 0x031B], vec![0x1E0A, 0x031B], vec![0x0044, 0x031B, 0x0307], vec![0x1E0A, 0x031B], vec![0x0044, 0x031B, 0x0307]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 1E0C 031B;1E0C 031B;0044 031B 0323;1E0C 031B;0044 031B 0323; # (Ḍ◌̛; Ḍ◌̛; D◌̛◌̣; Ḍ◌̛; D◌̛◌̣; ) LATIN CAPITAL LETTER D WITH DOT BELOW, COMBINING HORN
-        let c: Vec<Vec<u32>> = vec![vec![0x1E0C, 0x031B], vec![0x1E0C, 0x031B], vec![0x0044, 0x031B, 0x0323], vec![0x1E0C, 0x031B], vec![0x0044, 0x031B, 0x0323]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 1E0A 031B 0323;1E0C 031B 0307;0044 031B 0323 0307;1E0C 031B 0307;0044 031B 0323 0307; # (Ḋ◌̛◌̣; Ḍ◌̛◌̇; D◌̛◌̣◌̇; Ḍ◌̛◌̇; D◌̛◌̣◌̇; ) LATIN CAPITAL LETTER D WITH DOT ABOVE, COMBINING HORN, COMBINING DOT BELOW
-        let c: Vec<Vec<u32>> = vec![vec![0x1E0A, 0x031B, 0x0323], vec![0x1E0C, 0x031B, 0x0307], vec![0x0044, 0x031B, 0x0323, 0x0307], vec![0x1E0C, 0x031B, 0x0307], vec![0x0044, 0x031B, 0x0323, 0x0307]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 1E0C 031B 0307;1E0C 031B 0307;0044 031B 0323 0307;1E0C 031B 0307;0044 031B 0323 0307; # (Ḍ◌̛◌̇; Ḍ◌̛◌̇; D◌̛◌̣◌̇; Ḍ◌̛◌̇; D◌̛◌̣◌̇; ) LATIN CAPITAL LETTER D WITH DOT BELOW, COMBINING HORN, COMBINING DOT ABOVE
-        let c: Vec<Vec<u32>> = vec![vec![0x1E0C, 0x031B, 0x0307], vec![0x1E0C, 0x031B, 0x0307], vec![0x0044, 0x031B, 0x0323, 0x0307], vec![0x1E0C, 0x031B, 0x0307], vec![0x0044, 0x031B, 0x0323, 0x0307]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 0044 031B 0307 0323;1E0C 031B 0307;0044 031B 0323 0307;1E0C 031B 0307;0044 031B 0323 0307; # (D◌̛◌̇◌̣; Ḍ◌̛◌̇; D◌̛◌̣◌̇; Ḍ◌̛◌̇; D◌̛◌̣◌̇; ) LATIN CAPITAL LETTER D, COMBINING HORN, COMBINING DOT ABOVE, COMBINING DOT BELOW
-        let c: Vec<Vec<u32>> = vec![vec![0x0044, 0x031B, 0x0307, 0x0323], vec![0x1E0C, 0x031B, 0x0307], vec![0x0044, 0x031B, 0x0323, 0x0307], vec![0x1E0C, 0x031B, 0x0307], vec![0x0044, 0x031B, 0x0323, 0x0307]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 0044 031B 0323 0307;1E0C 031B 0307;0044 031B 0323 0307;1E0C 031B 0307;0044 031B 0323 0307; # (D◌̛◌̣◌̇; Ḍ◌̛◌̇; D◌̛◌̣◌̇; Ḍ◌̛◌̇; D◌̛◌̣◌̇; ) LATIN CAPITAL LETTER D, COMBINING HORN, COMBINING DOT BELOW, COMBINING DOT ABOVE
-        let c: Vec<Vec<u32>> = vec![vec![0x0044, 0x031B, 0x0323, 0x0307], vec![0x1E0C, 0x031B, 0x0307], vec![0x0044, 0x031B, 0x0323, 0x0307], vec![0x1E0C, 0x031B, 0x0307], vec![0x0044, 0x031B, 0x0323, 0x0307]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 00C8;00C8;0045 0300;00C8;0045 0300; # (È; È; E◌̀; È; E◌̀; ) LATIN CAPITAL LETTER E WITH GRAVE
-        let c: Vec<Vec<u32>> = vec![vec![0x00C8], vec![0x00C8], vec![0x0045, 0x0300], vec![0x00C8], vec![0x0045, 0x0300]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 0112;0112;0045 0304;0112;0045 0304; # (Ē; Ē; E◌̄; Ē; E◌̄; ) LATIN CAPITAL LETTER E WITH MACRON
-        let c: Vec<Vec<u32>> = vec![vec![0x0112], vec![0x0112], vec![0x0045, 0x0304], vec![0x0112], vec![0x0045, 0x0304]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 0045 0300;00C8;0045 0300;00C8;0045 0300; # (E◌̀; È; E◌̀; È; E◌̀; ) LATIN CAPITAL LETTER E, COMBINING GRAVE ACCENT
-        let c: Vec<Vec<u32>> = vec![vec![0x0045, 0x0300], vec![0x00C8], vec![0x0045, 0x0300], vec![0x00C8], vec![0x0045, 0x0300]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 0045 0304;0112;0045 0304;0112;0045 0304; # (E◌̄; Ē; E◌̄; Ē; E◌̄; ) LATIN CAPITAL LETTER E, COMBINING MACRON
-        let c: Vec<Vec<u32>> = vec![vec![0x0045, 0x0304], vec![0x0112], vec![0x0045, 0x0304], vec![0x0112], vec![0x0045, 0x0304]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 1E14;1E14;0045 0304 0300;1E14;0045 0304 0300; # (Ḕ; Ḕ; E◌̄◌̀; Ḕ; E◌̄◌̀; ) LATIN CAPITAL LETTER E WITH MACRON AND GRAVE
-        let c: Vec<Vec<u32>> = vec![vec![0x1E14], vec![0x1E14], vec![0x0045, 0x0304, 0x0300], vec![0x1E14], vec![0x0045, 0x0304, 0x0300]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 0112 0300;1E14;0045 0304 0300;1E14;0045 0304 0300; # (Ē◌̀; Ḕ; E◌̄◌̀; Ḕ; E◌̄◌̀; ) LATIN CAPITAL LETTER E WITH MACRON, COMBINING GRAVE ACCENT
-        let c: Vec<Vec<u32>> = vec![vec![0x0112, 0x0300], vec![0x1E14], vec![0x0045, 0x0304, 0x0300], vec![0x1E14], vec![0x0045, 0x0304, 0x0300]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 1E14 0304;1E14 0304;0045 0304 0300 0304;1E14 0304;0045 0304 0300 0304; # (Ḕ◌̄; Ḕ◌̄; E◌̄◌̀◌̄; Ḕ◌̄; E◌̄◌̀◌̄; ) LATIN CAPITAL LETTER E WITH MACRON AND GRAVE, COMBINING MACRON
-        let c: Vec<Vec<u32>> = vec![vec![0x1E14, 0x0304], vec![0x1E14, 0x0304], vec![0x0045, 0x0304, 0x0300, 0x0304], vec![0x1E14, 0x0304], vec![0x0045, 0x0304, 0x0300, 0x0304]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 0045 0304 0300;1E14;0045 0304 0300;1E14;0045 0304 0300; # (E◌̄◌̀; Ḕ; E◌̄◌̀; Ḕ; E◌̄◌̀; ) LATIN CAPITAL LETTER E, COMBINING MACRON, COMBINING GRAVE ACCENT
-        let c: Vec<Vec<u32>> = vec![vec![0x0045, 0x0304, 0x0300], vec![0x1E14], vec![0x0045, 0x0304, 0x0300], vec![0x1E14], vec![0x0045, 0x0304, 0x0300]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 0045 0300 0304;00C8 0304;0045 0300 0304;00C8 0304;0045 0300 0304; # (E◌̀◌̄; È◌̄; E◌̀◌̄; È◌̄; E◌̀◌̄; ) LATIN CAPITAL LETTER E, COMBINING GRAVE ACCENT, COMBINING MACRON
-        let c: Vec<Vec<u32>> = vec![vec![0x0045, 0x0300, 0x0304], vec![0x00C8, 0x0304], vec![0x0045, 0x0300, 0x0304], vec![0x00C8, 0x0304], vec![0x0045, 0x0300, 0x0304]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 05B8 05B9 05B1 0591 05C3 05B0 05AC 059F;05B1 05B8 05B9 0591 05C3 05B0 05AC 059F;05B1 05B8 05B9 0591 05C3 05B0 05AC 059F;05B1 05B8 05B9 0591 05C3 05B0 05AC 059F;05B1 05B8 05B9 0591 05C3 05B0 05AC 059F; # (◌ָ◌ֹ◌ֱ◌֑׃◌ְ◌֬◌֟; ◌ֱ◌ָ◌ֹ◌֑׃◌ְ◌֬◌֟; ◌ֱ◌ָ◌ֹ◌֑׃◌ְ◌֬◌֟; ◌ֱ◌ָ◌ֹ◌֑׃◌ְ◌֬◌֟; ◌ֱ◌ָ◌ֹ◌֑׃◌ְ◌֬◌֟; ) HEBREW POINT QAMATS, HEBREW POINT HOLAM, HEBREW POINT HATAF SEGOL, HEBREW ACCENT ETNAHTA, HEBREW PUNCTUATION SOF PASUQ, HEBREW POINT SHEVA, HEBREW ACCENT ILUY, HEBREW ACCENT QARNEY PARA
-        let c: Vec<Vec<u32>> = vec![vec![0x05B8, 0x05B9, 0x05B1, 0x0591, 0x05C3, 0x05B0, 0x05AC, 0x059F], vec![0x05B1, 0x05B8, 0x05B9, 0x0591, 0x05C3, 0x05B0, 0x05AC, 0x059F], vec![0x05B1, 0x05B8, 0x05B9, 0x0591, 0x05C3, 0x05B0, 0x05AC, 0x059F], vec![0x05B1, 0x05B8, 0x05B9, 0x0591, 0x05C3, 0x05B0, 0x05AC, 0x059F], vec![0x05B1, 0x05B8, 0x05B9, 0x0591, 0x05C3, 0x05B0, 0x05AC, 0x059F]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 0592 05B7 05BC 05A5 05B0 05C0 05C4 05AD;05B0 05B7 05BC 05A5 0592 05C0 05AD 05C4;05B0 05B7 05BC 05A5 0592 05C0 05AD 05C4;05B0 05B7 05BC 05A5 0592 05C0 05AD 05C4;05B0 05B7 05BC 05A5 0592 05C0 05AD 05C4; # (◌֒◌ַ◌ּ◌֥◌ְ׀◌ׄ◌֭; ◌ְ◌ַ◌ּ◌֥◌֒׀◌֭◌ׄ; ◌ְ◌ַ◌ּ◌֥◌֒׀◌֭◌ׄ; ◌ְ◌ַ◌ּ◌֥◌֒׀◌֭◌ׄ; ◌ְ◌ַ◌ּ◌֥◌֒׀◌֭◌ׄ; ) HEBREW ACCENT SEGOL, HEBREW POINT PATAH, HEBREW POINT DAGESH OR MAPIQ, HEBREW ACCENT MERKHA, HEBREW POINT SHEVA, HEBREW PUNCTUATION PASEQ, HEBREW MARK UPPER DOT, HEBREW ACCENT DEHI
-        let c: Vec<Vec<u32>> = vec![vec![0x0592, 0x05B7, 0x05BC, 0x05A5, 0x05B0, 0x05C0, 0x05C4, 0x05AD], vec![0x05B0, 0x05B7, 0x05BC, 0x05A5, 0x0592, 0x05C0, 0x05AD, 0x05C4], vec![0x05B0, 0x05B7, 0x05BC, 0x05A5, 0x0592, 0x05C0, 0x05AD, 0x05C4], vec![0x05B0, 0x05B7, 0x05BC, 0x05A5, 0x0592, 0x05C0, 0x05AD, 0x05C4], vec![0x05B0, 0x05B7, 0x05BC, 0x05A5, 0x0592, 0x05C0, 0x05AD, 0x05C4]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 1100 AC00 11A8;1100 AC01;1100 1100 1161 11A8;1100 AC01;1100 1100 1161 11A8; # (ᄀ각; ᄀ각; ᄀ각; ᄀ각; ᄀ각; ) HANGUL CHOSEONG KIYEOK, HANGUL SYLLABLE GA, HANGUL JONGSEONG KIYEOK
-        let c: Vec<Vec<u32>> = vec![vec![0x1100, 0xAC00, 0x11A8], vec![0x1100, 0xAC01], vec![0x1100, 0x1100, 0x1161, 0x11A8], vec![0x1100, 0xAC01], vec![0x1100, 0x1100, 0x1161, 0x11A8]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
-
-        // 1100 AC00 11A8 11A8;1100 AC01 11A8;1100 1100 1161 11A8 11A8;1100 AC01 11A8;1100 1100 1161 11A8 11A8; # (ᄀ각ᆨ; ᄀ각ᆨ; ᄀ각ᆨ; ᄀ각ᆨ; ᄀ각ᆨ; ) HANGUL CHOSEONG KIYEOK, HANGUL SYLLABLE GA, HANGUL JONGSEONG KIYEOK, HANGUL JONGSEONG KIYEOK
-        let c: Vec<Vec<u32>> = vec![vec![0x1100, 0xAC00, 0x11A8, 0x11A8], vec![0x1100, 0xAC01, 0x11A8], vec![0x1100, 0x1100, 0x1161, 0x11A8, 0x11A8], vec![0x1100, 0xAC01, 0x11A8], vec![0x1100, 0x1100, 0x1161, 0x11A8, 0x11A8]];
-        assert_eq!(c[1], to_nfc(&c[0]));
-        assert_eq!(c[1], to_nfc(&c[1]));
-        assert_eq!(c[1], to_nfc(&c[2]));
-        assert_eq!(c[3], to_nfc(&c[3]));
-        assert_eq!(c[3], to_nfc(&c[4]));
+        //
+        //
+        // // https://www.unicode.org/Public/14.0.0/ucd/NormalizationTest.txt
+        // // 1E0A;1E0A;0044 0307;1E0A;0044 0307; # (Ḋ; Ḋ; D◌̇; Ḋ; D◌̇; ) LATIN CAPITAL LETTER D WITH DOT ABOVE
+        // conformance_test(vec![vec![0x1E0A], vec![0x1E0A], vec![0x0044, 0x0307], vec![0x1E0A], vec![0x0044, 0x0307]]);
+        //
+        // // 1E0C;1E0C;0044 0323;1E0C;0044 0323; # (Ḍ; Ḍ; D◌̣; Ḍ; D◌̣; ) LATIN CAPITAL LETTER D WITH DOT BELOW
+        // conformance_test(vec![vec![0x1E0C], vec![0x1E0C], vec![0x0044, 0x0323], vec![0x1E0C], vec![0x0044, 0x0323]]);
+        //
+        // // 1E0A 0323;1E0C 0307;0044 0323 0307;1E0C 0307;0044 0323 0307; # (Ḋ◌̣; Ḍ◌̇; D◌̣◌̇; Ḍ◌̇; D◌̣◌̇; ) LATIN CAPITAL LETTER D WITH DOT ABOVE, COMBINING DOT BELOW
+        // conformance_test(vec![vec![0x1E0A, 0x0323], vec![0x1E0C, 0x0307], vec![0x0044, 0x0323, 0x0307], vec![0x1E0C, 0x0307], vec![0x0044, 0x0323, 0x0307]]);
+        //
+        // // 1E0C 0307;1E0C 0307;0044 0323 0307;1E0C 0307;0044 0323 0307; # (Ḍ◌̇; Ḍ◌̇; D◌̣◌̇; Ḍ◌̇; D◌̣◌̇; ) LATIN CAPITAL LETTER D WITH DOT BELOW, COMBINING DOT ABOVE
+        // conformance_test(vec![vec![0x1E0C, 0x0307], vec![0x1E0C, 0x0307], vec![0x0044, 0x0323, 0x0307], vec![0x1E0C, 0x0307], vec![0x0044, 0x0323, 0x0307]]);
+        //
+        // // 0044 0307 0323;1E0C 0307;0044 0323 0307;1E0C 0307;0044 0323 0307; # (D◌̇◌̣; Ḍ◌̇; D◌̣◌̇; Ḍ◌̇; D◌̣◌̇; ) LATIN CAPITAL LETTER D, COMBINING DOT ABOVE, COMBINING DOT BELOW
+        // conformance_test(vec![vec![0x0044, 0x0307, 0x0323], vec![0x1E0C, 0x0307], vec![0x0044, 0x0323, 0x0307], vec![0x1E0C, 0x0307], vec![0x0044, 0x0323, 0x0307]]);
+        //
+        // // 0044 0323 0307;1E0C 0307;0044 0323 0307;1E0C 0307;0044 0323 0307; # (D◌̣◌̇; Ḍ◌̇; D◌̣◌̇; Ḍ◌̇; D◌̣◌̇; ) LATIN CAPITAL LETTER D, COMBINING DOT BELOW, COMBINING DOT ABOVE
+        // conformance_test(vec![vec![0x0044, 0x0323, 0x0307], vec![0x1E0C, 0x0307], vec![0x0044, 0x0323, 0x0307], vec![0x1E0C, 0x0307], vec![0x0044, 0x0323, 0x0307]]);
+        //
+        // // 1E0A 031B;1E0A 031B;0044 031B 0307;1E0A 031B;0044 031B 0307; # (Ḋ◌̛; Ḋ◌̛; D◌̛◌̇; Ḋ◌̛; D◌̛◌̇; ) LATIN CAPITAL LETTER D WITH DOT ABOVE, COMBINING HORN
+        // conformance_test(vec![vec![0x1E0A, 0x031B], vec![0x1E0A, 0x031B], vec![0x0044, 0x031B, 0x0307], vec![0x1E0A, 0x031B], vec![0x0044, 0x031B, 0x0307]]);
+        //
+        // // 1E0C 031B;1E0C 031B;0044 031B 0323;1E0C 031B;0044 031B 0323; # (Ḍ◌̛; Ḍ◌̛; D◌̛◌̣; Ḍ◌̛; D◌̛◌̣; ) LATIN CAPITAL LETTER D WITH DOT BELOW, COMBINING HORN
+        // conformance_test(vec![vec![0x1E0C, 0x031B], vec![0x1E0C, 0x031B], vec![0x0044, 0x031B, 0x0323], vec![0x1E0C, 0x031B], vec![0x0044, 0x031B, 0x0323]]);
+        //
+        // // 1E0A 031B 0323;1E0C 031B 0307;0044 031B 0323 0307;1E0C 031B 0307;0044 031B 0323 0307; # (Ḋ◌̛◌̣; Ḍ◌̛◌̇; D◌̛◌̣◌̇; Ḍ◌̛◌̇; D◌̛◌̣◌̇; ) LATIN CAPITAL LETTER D WITH DOT ABOVE, COMBINING HORN, COMBINING DOT BELOW
+        // conformance_test(vec![vec![0x1E0A, 0x031B, 0x0323], vec![0x1E0C, 0x031B, 0x0307], vec![0x0044, 0x031B, 0x0323, 0x0307], vec![0x1E0C, 0x031B, 0x0307], vec![0x0044, 0x031B, 0x0323, 0x0307]]);
+        //
+        // // 1E0C 031B 0307;1E0C 031B 0307;0044 031B 0323 0307;1E0C 031B 0307;0044 031B 0323 0307; # (Ḍ◌̛◌̇; Ḍ◌̛◌̇; D◌̛◌̣◌̇; Ḍ◌̛◌̇; D◌̛◌̣◌̇; ) LATIN CAPITAL LETTER D WITH DOT BELOW, COMBINING HORN, COMBINING DOT ABOVE
+        // conformance_test(vec![vec![0x1E0C, 0x031B, 0x0307], vec![0x1E0C, 0x031B, 0x0307], vec![0x0044, 0x031B, 0x0323, 0x0307], vec![0x1E0C, 0x031B, 0x0307], vec![0x0044, 0x031B, 0x0323, 0x0307]]);
+        //
+        // // 0044 031B 0307 0323;1E0C 031B 0307;0044 031B 0323 0307;1E0C 031B 0307;0044 031B 0323 0307; # (D◌̛◌̇◌̣; Ḍ◌̛◌̇; D◌̛◌̣◌̇; Ḍ◌̛◌̇; D◌̛◌̣◌̇; ) LATIN CAPITAL LETTER D, COMBINING HORN, COMBINING DOT ABOVE, COMBINING DOT BELOW
+        // conformance_test(vec![vec![0x0044, 0x031B, 0x0307, 0x0323], vec![0x1E0C, 0x031B, 0x0307], vec![0x0044, 0x031B, 0x0323, 0x0307], vec![0x1E0C, 0x031B, 0x0307], vec![0x0044, 0x031B, 0x0323, 0x0307]]);
+        //
+        // // 0044 031B 0323 0307;1E0C 031B 0307;0044 031B 0323 0307;1E0C 031B 0307;0044 031B 0323 0307; # (D◌̛◌̣◌̇; Ḍ◌̛◌̇; D◌̛◌̣◌̇; Ḍ◌̛◌̇; D◌̛◌̣◌̇; ) LATIN CAPITAL LETTER D, COMBINING HORN, COMBINING DOT BELOW, COMBINING DOT ABOVE
+        // conformance_test(vec![vec![0x0044, 0x031B, 0x0323, 0x0307], vec![0x1E0C, 0x031B, 0x0307], vec![0x0044, 0x031B, 0x0323, 0x0307], vec![0x1E0C, 0x031B, 0x0307], vec![0x0044, 0x031B, 0x0323, 0x0307]]);
+        //
+        // // 00C8;00C8;0045 0300;00C8;0045 0300; # (È; È; E◌̀; È; E◌̀; ) LATIN CAPITAL LETTER E WITH GRAVE
+        // conformance_test(vec![vec![0x00C8], vec![0x00C8], vec![0x0045, 0x0300], vec![0x00C8], vec![0x0045, 0x0300]]);
+        //
+        // // 0112;0112;0045 0304;0112;0045 0304; # (Ē; Ē; E◌̄; Ē; E◌̄; ) LATIN CAPITAL LETTER E WITH MACRON
+        // conformance_test(vec![vec![0x0112], vec![0x0112], vec![0x0045, 0x0304], vec![0x0112], vec![0x0045, 0x0304]]);
+        //
+        // // 0045 0300;00C8;0045 0300;00C8;0045 0300; # (E◌̀; È; E◌̀; È; E◌̀; ) LATIN CAPITAL LETTER E, COMBINING GRAVE ACCENT
+        // conformance_test(vec![vec![0x0045, 0x0300], vec![0x00C8], vec![0x0045, 0x0300], vec![0x00C8], vec![0x0045, 0x0300]]);
+        //
+        // // 0045 0304;0112;0045 0304;0112;0045 0304; # (E◌̄; Ē; E◌̄; Ē; E◌̄; ) LATIN CAPITAL LETTER E, COMBINING MACRON
+        // conformance_test(vec![vec![0x0045, 0x0304], vec![0x0112], vec![0x0045, 0x0304], vec![0x0112], vec![0x0045, 0x0304]]);
+        //
+        // // 1E14;1E14;0045 0304 0300;1E14;0045 0304 0300; # (Ḕ; Ḕ; E◌̄◌̀; Ḕ; E◌̄◌̀; ) LATIN CAPITAL LETTER E WITH MACRON AND GRAVE
+        // conformance_test(vec![vec![0x1E14], vec![0x1E14], vec![0x0045, 0x0304, 0x0300], vec![0x1E14], vec![0x0045, 0x0304, 0x0300]]);
+        //
+        // // 0112 0300;1E14;0045 0304 0300;1E14;0045 0304 0300; # (Ē◌̀; Ḕ; E◌̄◌̀; Ḕ; E◌̄◌̀; ) LATIN CAPITAL LETTER E WITH MACRON, COMBINING GRAVE ACCENT
+        // conformance_test(vec![vec![0x0112, 0x0300], vec![0x1E14], vec![0x0045, 0x0304, 0x0300], vec![0x1E14], vec![0x0045, 0x0304, 0x0300]]);
+        //
+        // // 1E14 0304;1E14 0304;0045 0304 0300 0304;1E14 0304;0045 0304 0300 0304; # (Ḕ◌̄; Ḕ◌̄; E◌̄◌̀◌̄; Ḕ◌̄; E◌̄◌̀◌̄; ) LATIN CAPITAL LETTER E WITH MACRON AND GRAVE, COMBINING MACRON
+        // conformance_test(vec![vec![0x1E14, 0x0304], vec![0x1E14, 0x0304], vec![0x0045, 0x0304, 0x0300, 0x0304], vec![0x1E14, 0x0304], vec![0x0045, 0x0304, 0x0300, 0x0304]]);
+        //
+        // // 0045 0304 0300;1E14;0045 0304 0300;1E14;0045 0304 0300; # (E◌̄◌̀; Ḕ; E◌̄◌̀; Ḕ; E◌̄◌̀; ) LATIN CAPITAL LETTER E, COMBINING MACRON, COMBINING GRAVE ACCENT
+        // conformance_test(vec![vec![0x0045, 0x0304, 0x0300], vec![0x1E14], vec![0x0045, 0x0304, 0x0300], vec![0x1E14], vec![0x0045, 0x0304, 0x0300]]);
+        //
+        // // 0045 0300 0304;00C8 0304;0045 0300 0304;00C8 0304;0045 0300 0304; # (E◌̀◌̄; È◌̄; E◌̀◌̄; È◌̄; E◌̀◌̄; ) LATIN CAPITAL LETTER E, COMBINING GRAVE ACCENT, COMBINING MACRON
+        // conformance_test(vec![vec![0x0045, 0x0300, 0x0304], vec![0x00C8, 0x0304], vec![0x0045, 0x0300, 0x0304], vec![0x00C8, 0x0304], vec![0x0045, 0x0300, 0x0304]]);
+        //
+        // // 05B8 05B9 05B1 0591 05C3 05B0 05AC 059F;05B1 05B8 05B9 0591 05C3 05B0 05AC 059F;05B1 05B8 05B9 0591 05C3 05B0 05AC 059F;05B1 05B8 05B9 0591 05C3 05B0 05AC 059F;05B1 05B8 05B9 0591 05C3 05B0 05AC 059F; # (◌ָ◌ֹ◌ֱ◌֑׃◌ְ◌֬◌֟; ◌ֱ◌ָ◌ֹ◌֑׃◌ְ◌֬◌֟; ◌ֱ◌ָ◌ֹ◌֑׃◌ְ◌֬◌֟; ◌ֱ◌ָ◌ֹ◌֑׃◌ְ◌֬◌֟; ◌ֱ◌ָ◌ֹ◌֑׃◌ְ◌֬◌֟; ) HEBREW POINT QAMATS, HEBREW POINT HOLAM, HEBREW POINT HATAF SEGOL, HEBREW ACCENT ETNAHTA, HEBREW PUNCTUATION SOF PASUQ, HEBREW POINT SHEVA, HEBREW ACCENT ILUY, HEBREW ACCENT QARNEY PARA
+        // conformance_test(vec![vec![0x05B8, 0x05B9, 0x05B1, 0x0591, 0x05C3, 0x05B0, 0x05AC, 0x059F], vec![0x05B1, 0x05B8, 0x05B9, 0x0591, 0x05C3, 0x05B0, 0x05AC, 0x059F], vec![0x05B1, 0x05B8, 0x05B9, 0x0591, 0x05C3, 0x05B0, 0x05AC, 0x059F], vec![0x05B1, 0x05B8, 0x05B9, 0x0591, 0x05C3, 0x05B0, 0x05AC, 0x059F], vec![0x05B1, 0x05B8, 0x05B9, 0x0591, 0x05C3, 0x05B0, 0x05AC, 0x059F]]);
+        //
+        // // 0592 05B7 05BC 05A5 05B0 05C0 05C4 05AD;05B0 05B7 05BC 05A5 0592 05C0 05AD 05C4;05B0 05B7 05BC 05A5 0592 05C0 05AD 05C4;05B0 05B7 05BC 05A5 0592 05C0 05AD 05C4;05B0 05B7 05BC 05A5 0592 05C0 05AD 05C4; # (◌֒◌ַ◌ּ◌֥◌ְ׀◌ׄ◌֭; ◌ְ◌ַ◌ּ◌֥◌֒׀◌֭◌ׄ; ◌ְ◌ַ◌ּ◌֥◌֒׀◌֭◌ׄ; ◌ְ◌ַ◌ּ◌֥◌֒׀◌֭◌ׄ; ◌ְ◌ַ◌ּ◌֥◌֒׀◌֭◌ׄ; ) HEBREW ACCENT SEGOL, HEBREW POINT PATAH, HEBREW POINT DAGESH OR MAPIQ, HEBREW ACCENT MERKHA, HEBREW POINT SHEVA, HEBREW PUNCTUATION PASEQ, HEBREW MARK UPPER DOT, HEBREW ACCENT DEHI
+        // conformance_test(vec![vec![0x0592, 0x05B7, 0x05BC, 0x05A5, 0x05B0, 0x05C0, 0x05C4, 0x05AD], vec![0x05B0, 0x05B7, 0x05BC, 0x05A5, 0x0592, 0x05C0, 0x05AD, 0x05C4], vec![0x05B0, 0x05B7, 0x05BC, 0x05A5, 0x0592, 0x05C0, 0x05AD, 0x05C4], vec![0x05B0, 0x05B7, 0x05BC, 0x05A5, 0x0592, 0x05C0, 0x05AD, 0x05C4], vec![0x05B0, 0x05B7, 0x05BC, 0x05A5, 0x0592, 0x05C0, 0x05AD, 0x05C4]]);
+        //
+        // // 1100 AC00 11A8;1100 AC01;1100 1100 1161 11A8;1100 AC01;1100 1100 1161 11A8; # (ᄀ각; ᄀ각; ᄀ각; ᄀ각; ᄀ각; ) HANGUL CHOSEONG KIYEOK, HANGUL SYLLABLE GA, HANGUL JONGSEONG KIYEOK
+        // conformance_test(vec![vec![0x1100, 0xAC00, 0x11A8], vec![0x1100, 0xAC01], vec![0x1100, 0x1100, 0x1161, 0x11A8], vec![0x1100, 0xAC01], vec![0x1100, 0x1100, 0x1161, 0x11A8]]);
+        //
+        // // 1100 AC00 11A8 11A8;1100 AC01 11A8;1100 1100 1161 11A8 11A8;1100 AC01 11A8;1100 1100 1161 11A8 11A8; # (ᄀ각ᆨ; ᄀ각ᆨ; ᄀ각ᆨ; ᄀ각ᆨ; ᄀ각ᆨ; ) HANGUL CHOSEONG KIYEOK, HANGUL SYLLABLE GA, HANGUL JONGSEONG KIYEOK, HANGUL JONGSEONG KIYEOK
+        // conformance_test(vec![vec![0x1100, 0xAC00, 0x11A8, 0x11A8], vec![0x1100, 0xAC01, 0x11A8], vec![0x1100, 0x1100, 0x1161, 0x11A8, 0x11A8], vec![0x1100, 0xAC01, 0x11A8], vec![0x1100, 0x1100, 0x1161, 0x11A8, 0x11A8]]);
     }
 }
