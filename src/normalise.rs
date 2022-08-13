@@ -36,13 +36,6 @@ pub fn quick_check(bytes: Vec<u8>) -> IsNormalised {
     return result;
 }
 
-fn decompose(cp: u32) -> Vec<u32> {
-    match decomposition_mapping(cp) {
-        None => vec![cp],
-        Some(dm) => dm.into_iter().flat_map(decompose).collect()
-    }
-}
-
 pub fn to_nfc_str(bytes: Vec<u8>) -> Vec<u8> {
     // Note: this intermediate vec isn't necessary, I've just split up the funcs
     // because the provided test cases are in code points, not utf-8
@@ -50,8 +43,30 @@ pub fn to_nfc_str(bytes: Vec<u8>) -> Vec<u8> {
     to_nfc(&cps).into_iter().flat_map(encode_utf8).collect()
 }
 
-fn to_nfc(cps: &Vec<u32>) -> Vec<u32> {
-    let mut decomposed: Vec<u32> = cps.into_iter()
+fn decompose(cp: u32) -> Vec<u32> {
+    match decomposition_mapping(cp) {
+        None => vec![cp],
+        Some(dm) => dm.into_iter().flat_map(decompose).collect()
+    }
+}
+
+fn to_nfd(code_points: &Vec<u32>) -> Vec<u32> {
+    let mut decomposed: Vec<u32> = code_points.into_iter()
+        .fold(Vec::new(), |mut acc, cp| {
+            acc.extend(decompose(*cp));
+            acc
+        });
+    let mut pos = 0;
+    while pos < decomposed.len() {
+        let next_starter_offset = decomposed[pos..].iter().skip(1).position(|cp| is_starter(*cp)).map(|offset| offset + 1).unwrap_or(decomposed.len() - pos);
+        decomposed[pos..(pos + next_starter_offset)].sort_by(|a, b| combining_class(*a).cmp(&combining_class(*b)));
+        pos += next_starter_offset
+    }
+    decomposed
+}
+
+fn to_nfc(code_points: &Vec<u32>) -> Vec<u32> {
+    let mut decomposed: Vec<u32> = code_points.into_iter()
         .fold(Vec::new(), |mut acc, cp| {
             acc.extend(decompose(*cp));
             acc
@@ -111,6 +126,7 @@ mod tests {
     }
 
 
+    // https://www.unicode.org/Public/14.0.0/ucd/NormalizationTest.txt
     /*
     # CONFORMANCE:
     # 1. The following invariants must be true for all conformant implementations
@@ -126,23 +142,44 @@ mod tests {
         assert_eq!(c[3], to_nfc(&c[3]));
         assert_eq!(c[3], to_nfc(&c[4]));
     }
+    /*
+    #    NFD
+    #      c3 ==  toNFD(c1) ==  toNFD(c2) ==  toNFD(c3)
+    #      c5 ==  toNFD(c4) ==  toNFD(c5)
+    #
+    */
+    fn nfd_conformance_test(c: Vec<Vec<u32>>) {
+        assert_eq!(c[2], to_nfd(&c[0]));
+        assert_eq!(c[2], to_nfd(&c[1]));
+        assert_eq!(c[2], to_nfd(&c[2]));
+        assert_eq!(c[4], to_nfd(&c[3]));
+        assert_eq!(c[4], to_nfd(&c[4]));
+    }
 
     fn parse_line(line: &str) -> Vec<Vec<u32>> {
         line.split(";").take(5).map(|block| block.split_whitespace().map(|s| u32::from_str_radix(s, 16).unwrap()).collect()).collect()
     }
 
-    #[test]
-    fn test_to_nfc() {
-        // https://www.unicode.org/Public/14.0.0/ucd/NormalizationTest.txt
-        let test_cases: Vec<Vec<Vec<u32>>> = std::fs::read_to_string(std::path::Path::new("resources/NormalizationTest.txt"))
+    fn load_test_cases() -> Vec<Vec<Vec<u32>>> {
+        std::fs::read_to_string(std::path::Path::new("resources/NormalizationTest.txt"))
             .unwrap()
             .split("\n")
             .filter(|line| !line.is_empty() && !line.starts_with("#") && !line.starts_with("@"))
             .map(parse_line)
-            .collect();
+            .collect()
+    }
 
-        for case in test_cases {
+    #[test]
+    fn test_to_nfc() {
+        for case in load_test_cases() {
             nfc_conformance_test(case);
+        }
+    }
+
+    #[test]
+    fn test_to_nfd() {
+        for case in load_test_cases() {
+            nfd_conformance_test(case)
         }
     }
 }
