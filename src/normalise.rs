@@ -36,13 +36,16 @@ pub fn quick_check(bytes: Vec<u8>) -> IsNormalised {
     return result;
 }
 
+// These functions are inefficient in that each one iterates through the entire string and each
+// intermediate step produces a separate vector. They are done this way to make it easier to see
+// how the different stages build on each other, and because it's easier to test.
+// In a real application, we could easily skip a few of the intermediate vectors.
 pub fn to_nfc_str(bytes: Vec<u8>) -> Vec<u8> {
-    // Note: this intermediate vec isn't necessary, I've just split up the funcs
-    // because the provided test cases are in code points, not utf-8
     let cps: Vec<u32> = CodePointIter::new(bytes).collect();
     to_nfc(&cps).into_iter().flat_map(encode_utf8).collect()
 }
 
+// The important bit here is that decompose is recursive.
 fn decompose(cp: u32) -> Vec<u32> {
     match decomposition_mapping(cp) {
         None => vec![cp],
@@ -50,6 +53,8 @@ fn decompose(cp: u32) -> Vec<u32> {
     }
 }
 
+// Decompose and canonically order the code points. Canonical ordering needs to use a stable sort,
+// which luckily Rust's default sort is.
 fn to_nfd(code_points: &Vec<u32>) -> Vec<u32> {
     let mut decomposed: Vec<u32> = code_points.into_iter()
         .fold(Vec::new(), |mut acc, cp| {
@@ -66,32 +71,35 @@ fn to_nfd(code_points: &Vec<u32>) -> Vec<u32> {
 }
 
 fn to_nfc(code_points: &Vec<u32>) -> Vec<u32> {
-    let mut decomposed: Vec<u32> = code_points.into_iter()
-        .fold(Vec::new(), |mut acc, cp| {
-            acc.extend(decompose(*cp));
-            acc
-        });
-
+    let mut nfd = to_nfd(code_points);
     let mut pos = 0;
     let mut try_compose = true;
     loop {
         if try_compose {
             try_compose = false;
-            let next_starter_offset = decomposed[pos..].iter().skip(1).position(|cp| is_starter(*cp)).map(|offset| offset + 1).unwrap_or(decomposed.len() - pos);
-            let char_seq_end = min(next_starter_offset + 1, decomposed.len() - pos);
-            decomposed[pos..(pos + next_starter_offset)].sort_by(|a, b| combining_class(*a).cmp(&combining_class(*b)));
+            let char_seq_end = nfd[pos..]
+                .into_iter()
+                .skip(1) // skip the current starter
+                .position(|cp| is_starter(*cp)) // find the next starter, idx is from pos.skip(1) not pos
+                .map(|offset| min(offset + 2, nfd.len() - pos)) // add one for beginning and ending starter
+                .unwrap_or(nfd.len() - pos); // if no starters left in string, return the end
 
             let mut last_ccc = 0;
             for i in 1..char_seq_end {
-                let ccc = combining_class(decomposed[pos + i]);
-                if let Some(composite) = primary_composite(decomposed[pos], decomposed[pos + i]) {
+                let ccc = combining_class(nfd[pos + i]);
+                if let Some(composite) = primary_composite(nfd[pos], nfd[pos + i]) {
                     // A starter-combining mark pair may be blocked by an intervening combining mark
-                    // if it has the same ccc.
+                    // if they have equal combining classes. Given A B C, if A + C form a pair, but
+                    // both B and C have the combining class 200, C is blocked by B.
                     if ccc > 0 && ccc == last_ccc { break; }
                     // A starter-starter pair is blocked if there are combining marks in between.
                     if ccc < last_ccc { break; }
-                    decomposed[pos] = composite;
-                    decomposed.remove(pos + i);
+                    // If not blocked, replace the starter with the composite, remove the other half,
+                    // and go back and try again. It's necessary to retry in place, because you can
+                    // have A B C, where A and B produce D, and D and C produce E. So we don't just
+                    // continue after having made a composite.
+                    nfd[pos] = composite;
+                    nfd.remove(pos + i);
                     try_compose = true;
                     break;
                 } else {
@@ -99,16 +107,16 @@ fn to_nfc(code_points: &Vec<u32>) -> Vec<u32> {
                 }
             }
         } else {
-            match decomposed[pos..].iter().skip(1).position(|cp| is_starter(*cp)) {
+            match nfd[pos..].iter().skip(1).position(|cp| is_starter(*cp)).map(|offset| offset + 1) {
                 Some(offset) => {
-                    pos += offset + 1;
+                    pos += offset;
                     try_compose = true;
                 }
                 None => break
             }
         }
     }
-    decomposed
+    nfd
 }
 
 

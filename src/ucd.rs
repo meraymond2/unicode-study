@@ -34,6 +34,9 @@ lazy_static! {
         HashMap::from_iter(pairs.into_iter())
     };
 
+    // Canonical (dt=can) decomposition mappings. Unlike the composite mappings, they include
+    // the composition exclusions.
+    // cat ucd.all.flat.xml | grep 'dt="can"'
     static ref DECOMPOSITION_MAPPINGS: HashMap<u32, Vec<u32>> = {
         let f = std::fs::File::open("resources/decomposition-mappings.json").unwrap();
         let rdr = std::io::BufReader::new(f);
