@@ -1,7 +1,7 @@
 use std::cmp::min;
 use crate::cp_iter::CodePointIter;
 use crate::helpers::encode_utf8;
-use crate::ucd::{combining_class, decomposition_mapping, is_starter, nfc_is_allowed, primary_composite, QuickCheckVal};
+use crate::ucd::{combining_class, decomposition_mapping, is_allowed, is_starter, primary_composite, QuickCheckVal};
 
 // https://www.unicode.org/reports/tr15/#Detecting_Normalization_Forms
 
@@ -12,16 +12,24 @@ pub enum IsNormalised {
     Maybe,
 }
 
-pub fn quick_check(bytes: Vec<u8>) -> IsNormalised {
-    let code_points = CodePointIter::new(bytes);
+pub enum Normalisation {
+    NFC,
+    NFD,
+    // skipping these for now, I'm not that interested in the compatability equivalence,
+    // it would make more sense if one was doing search
+    // NFKC,
+    // NFKD,
+}
+
+pub fn quick_check(code_points: &Vec<u32>, normalisation: Normalisation) -> IsNormalised {
     let mut last_canonical_class: u8 = 0;
     let mut result: IsNormalised = IsNormalised::Yes;
     for code_point in code_points.into_iter() {
-        let ccc = combining_class(code_point);
+        let ccc = combining_class(*code_point);
         if last_canonical_class > ccc && ccc != 0 {
             return IsNormalised::No;
         }
-        match nfc_is_allowed(code_point) {
+        match is_allowed(*code_point, &normalisation) {
             QuickCheckVal::Yes => {}
             QuickCheckVal::No => {
                 return IsNormalised::No;
@@ -124,16 +132,6 @@ fn to_nfc(code_points: &Vec<u32>) -> Vec<u32> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_quick_check() {
-        // "å"
-        assert_eq!(quick_check(vec![0xc3, 0xa5]), IsNormalised::Yes);
-        // "å" decomposed, quick check says maybe, because there are combining marks
-        // it's actually not normalised, but those code points could make up a normalised string
-        assert_eq!(quick_check(vec![0x61, 0xcc, 0x8a]), IsNormalised::Maybe);
-    }
-
-
     // https://www.unicode.org/Public/14.0.0/ucd/NormalizationTest.txt
     /*
     # CONFORMANCE:
@@ -150,6 +148,7 @@ mod tests {
         assert_eq!(c[3], to_nfc(&c[3]));
         assert_eq!(c[3], to_nfc(&c[4]));
     }
+
     /*
     #    NFD
     #      c3 ==  toNFD(c1) ==  toNFD(c2) ==  toNFD(c3)
@@ -175,6 +174,22 @@ mod tests {
             .filter(|line| !line.is_empty() && !line.starts_with("#") && !line.starts_with("@"))
             .map(parse_line)
             .collect()
+    }
+
+    #[test]
+    fn test_quick_check() {
+        // "å"
+        assert_eq!(quick_check(&vec![0x00E5], Normalisation::NFC), IsNormalised::Yes);
+        // "å" decomposed, quick check says maybe, because there are combining marks
+        // it's actually not normalised, but those code points could make up a normalised string
+        assert_eq!(quick_check(&vec![0x61, 0x030A], Normalisation::NFC), IsNormalised::Maybe);
+
+        for case in load_test_cases() {
+            // This is the NFC normalised case, so quick check can only identify that it's not not normalised.
+            assert_ne!(quick_check(&case[1], Normalisation::NFC), IsNormalised::No);
+            // NFD normalised case. There's no maybe decomposed, so we know this is yes.
+            assert_eq!(quick_check(&case[2], Normalisation::NFD), IsNormalised::Yes);
+        }
     }
 
     #[test]

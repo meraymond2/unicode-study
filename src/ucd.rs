@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use lazy_static::lazy_static;
+use crate::normalise::Normalisation;
 
 // The simplest way to get them is to extract them from the XML, because otherwise they're spread
 // out over two files, DerivedNormalizationProps and UCDData. But actually parsing the XML is a
@@ -17,6 +18,13 @@ lazy_static! {
      // composition exclusions
     static ref NFC_QC_N: HashSet<u32> = {
         let f = std::fs::File::open("resources/nfc-quick-check-no.json").unwrap();
+        let rdr = std::io::BufReader::new(f);
+        serde_json::from_reader(rdr).unwrap()
+    };
+
+    // cat ucd.all.flat.xml | grep 'NFD_QC="N"' | grep -Eo 'cp="([0-9A-F]+)"'
+    static ref NFD_QC_N: HashSet<u32> = {
+        let f = std::fs::File::open("resources/nfd-quick-check-no.json").unwrap();
         let rdr = std::io::BufReader::new(f);
         serde_json::from_reader(rdr).unwrap()
     };
@@ -68,16 +76,28 @@ pub enum QuickCheckVal {
     Maybe,
 }
 
-pub fn nfc_is_allowed(code_point: u32) -> QuickCheckVal {
-    if NFC_QC_M.contains(&code_point) {
-        QuickCheckVal::Maybe
-    } else if NFC_QC_N.contains(&code_point) {
-        QuickCheckVal::No
-    } else {
-        QuickCheckVal::Yes
+pub fn is_allowed(code_point: u32, normalisation: &Normalisation) -> QuickCheckVal {
+    match normalisation {
+        Normalisation::NFC => {
+            if NFC_QC_M.contains(&code_point) {
+                QuickCheckVal::Maybe
+            } else if NFC_QC_N.contains(&code_point) {
+                QuickCheckVal::No
+            } else {
+                QuickCheckVal::Yes
+            }
+        }
+        Normalisation::NFD => {
+            if NFD_QC_N.contains(&code_point) {
+                QuickCheckVal::No
+            } else {
+                QuickCheckVal::Yes
+            }
+        }
+        Normalisation::NFKC => todo!(),
+        Normalisation::NFKD => todo!(),
     }
 }
-
 
 pub fn primary_composite(l: u32, c: u32) -> Option<u32> {
     PRIMARY_COMPOSITES.get(&[l, c]).map(|cp| *cp)
