@@ -4,4 +4,5 @@ pub mod fix;
 mod ucd;
 pub mod normalise;
 mod cp_iter;
+pub mod case;
 

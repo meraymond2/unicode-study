@@ -56,6 +56,33 @@ lazy_static! {
         let rdr = std::io::BufReader::new(f);
         serde_json::from_reader(rdr).unwrap()
     };
+
+    // Upper = is uppercase , Lower = is lowercase, OUpper/Olower = Other_*Case
+    // su/l/tc = simple upper/lower/title case mappings, excluding special cases
+    // u/l/c = full case mappings
+    // cat dev/ucd.all.flat.xml | grep -v ' uc="#"' | grep ' uc=' (make sure to get space before uc, don't match suc)
+    static ref UPPERCASE_MAPPINGS: HashMap<u32, Vec<u32>> = {
+        let f = std::fs::File::open("resources/uppercase-mappings.json").unwrap();
+        let rdr = std::io::BufReader::new(f);
+        serde_json::from_reader(rdr).unwrap()
+    };
+
+    // excludes 0130, which is the one whose lc is two code points
+    static ref LOWERCASE_MAPPINGS: HashMap<u32, u32> = {
+        let f = std::fs::File::open("resources/lowercase-mappings.json").unwrap();
+        let rdr = std::io::BufReader::new(f);
+        serde_json::from_reader(rdr).unwrap()
+    };
+
+    // grep 'Cased="Y"' | grep 'Cased='
+    static ref CASED: HashSet<u32> = serde_json::from_str(
+        &std::fs::read_to_string(std::path::Path::new("resources/cased.json")).unwrap()
+    ).unwrap();
+
+    // grep 'CI="Y"' | grep 'CI='
+    static ref CASE_IGNORABLE: HashSet<u32> = serde_json::from_str(
+        &std::fs::read_to_string(std::path::Path::new("resources/case-ignorable.json")
+    ).unwrap()).unwrap();
 }
 
 pub fn decomposition_mapping(code_point: u32) -> Option<Vec<u32>> {
@@ -94,11 +121,23 @@ pub fn is_allowed(code_point: u32, normalisation: &Normalisation) -> QuickCheckV
                 QuickCheckVal::Yes
             }
         }
-        Normalisation::NFKC => todo!(),
-        Normalisation::NFKD => todo!(),
+        // Normalisation::NFKC => todo!(),
+        // Normalisation::NFKD => todo!(),
     }
 }
 
 pub fn primary_composite(l: u32, c: u32) -> Option<u32> {
     PRIMARY_COMPOSITES.get(&[l, c]).map(|cp| *cp)
+}
+
+pub fn lowercase_mapping(code_point: u32) -> Option<u32> {
+    LOWERCASE_MAPPINGS.get(&code_point).map(|cp| *cp)
+}
+
+pub fn cased(code_point: u32) -> bool {
+    CASED.contains(&code_point)
+}
+
+pub fn case_ignorable(code_point: u32) -> bool {
+    CASE_IGNORABLE.contains(&code_point)
 }
