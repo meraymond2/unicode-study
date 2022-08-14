@@ -134,6 +134,10 @@ pub fn lowercase_mapping(code_point: u32) -> Option<u32> {
     LOWERCASE_MAPPINGS.get(&code_point).map(|cp| *cp)
 }
 
+pub fn uppercase_mapping(code_point: u32) -> Option<Vec<u32>> {
+    UPPERCASE_MAPPINGS.get(&code_point).map(|cp| cp.clone())
+}
+
 pub fn cased(code_point: u32) -> bool {
     CASED.contains(&code_point)
 }

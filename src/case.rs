@@ -1,6 +1,6 @@
 // These are the default casing operations, but locale-specific ‘tailored’ casings are possible.
 
-use crate::ucd::{case_ignorable, cased, lowercase_mapping};
+use crate::ucd::{case_ignorable, cased, lowercase_mapping, uppercase_mapping};
 
 // There are a couple documented cases this doesn't handle.
 // 1. In Lithuanian small i with an accent still has a dot, which needs to be added back as
@@ -11,8 +11,8 @@ use crate::ucd::{case_ignorable, cased, lowercase_mapping};
 // locale-aware.
 pub fn to_lowercase(code_points: Vec<u32>) -> Vec<u32> {
     let mut pos = 0;
-    let mut out = Vec::with_capacity(code_points.len());
     let len = code_points.len();
+    let mut out = Vec::with_capacity(len);
     while pos < len {
         let code_point = code_points[pos];
         match code_point {
@@ -49,6 +49,14 @@ fn is_final_sigma(code_points: &Vec<u32>, sigma_pos: usize) -> bool {
     }
 }
 
+pub fn to_uppercase(code_points: Vec<u32>) -> Vec<u32> {
+    let mut out = Vec::with_capacity(code_points.len());
+    for code_point in code_points {
+        out.extend(uppercase_mapping(code_point).unwrap_or(vec![code_point]));
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -68,5 +76,27 @@ mod tests {
         assert_eq!(to_lowercase(vec![0x0391, 0x0345, 0x03A3, 0x0020]), vec![0x03B1, 0x0345, 0x03C2, 0x0020]);
         // ALPHA YPOGEGRAMMENI SIGMA - cased ignorable sigma - ς
         assert_eq!(to_lowercase(vec![0x0391, 0x0345, 0x03A3]), vec![0x03B1, 0x0345, 0x03C2]);
+    }
+
+    #[test]
+    fn test_to_uppercase() {
+        // ß -> SS
+        assert_eq!(to_uppercase(vec![0x00DF]), vec![0x0053, 0x0053]);
+        // ŉ -> ʼN
+        assert_eq!(to_uppercase(vec![0x0149]), vec![0x02BC, 0x004E]);
+        // ǰ -> J̌
+        assert_eq!(to_uppercase(vec![0x01F0]), vec![0x004A, 0x030C]);
+        // ΐ -> Ϊ́
+        assert_eq!(to_uppercase(vec![0x0390]), vec![0x0399, 0x0308, 0x0301]);
+        // ΰ -> Ϋ́
+        assert_eq!(to_uppercase(vec![0x03B0]), vec![0x03A5, 0x0308, 0x0301]);
+        // և -> ԵՒ
+        assert_eq!(to_uppercase(vec![0x0587]), vec![0x0535, 0x0552]);
+        // ẖ -> H̱
+        assert_eq!(to_uppercase(vec![0x1E96]), vec![0x0048, 0x0331]);
+        // ﬄ -> FFL
+        assert_eq!(to_uppercase(vec![0xFB04]), vec![0x0046, 0x0046, 0x004C]);
+        // . -> .
+        assert_eq!(to_uppercase(vec![0x002E]), vec![0x002E]);
     }
 }
