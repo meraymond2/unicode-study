@@ -1,4 +1,4 @@
-use crate::helpers::{CodeUnit, decode_double, decode_quad, decode_triple};
+use crate::helpers::{decode_double, decode_quad, decode_triple, CodeUnit};
 
 pub struct CodePointIter {
     bytes: Vec<u8>,
@@ -30,16 +30,25 @@ impl Iterator for CodePointIter {
                     Some(code_point)
                 }
                 CodeUnit::TriplePrefix => {
-                    let code_point = decode_triple(self.bytes[self.pos], self.bytes[self.pos + 1], self.bytes[self.pos + 2]);
+                    let code_point = decode_triple(
+                        self.bytes[self.pos],
+                        self.bytes[self.pos + 1],
+                        self.bytes[self.pos + 2],
+                    );
                     self.pos += 3;
                     Some(code_point)
                 }
                 CodeUnit::QuadPrefix => {
-                    let code_point = decode_quad(self.bytes[self.pos], self.bytes[self.pos + 1], self.bytes[self.pos + 2], self.bytes[self.pos + 3]);
+                    let code_point = decode_quad(
+                        self.bytes[self.pos],
+                        self.bytes[self.pos + 1],
+                        self.bytes[self.pos + 2],
+                        self.bytes[self.pos + 3],
+                    );
                     self.pos += 4;
                     Some(code_point)
                 }
-                CodeUnit::Continuation => unreachable!()
+                CodeUnit::Continuation => unreachable!(),
             }
         }
     }

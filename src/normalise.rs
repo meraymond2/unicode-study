@@ -1,7 +1,10 @@
-use std::cmp::min;
 use crate::cp_iter::CodePointIter;
 use crate::helpers::encode_utf8;
-use crate::ucd::{combining_class, decomposition_mapping, is_allowed, is_starter, primary_composite, QuickCheckVal};
+use crate::ucd::{
+    combining_class, decomposition_mapping, is_allowed, is_starter, primary_composite,
+    QuickCheckVal,
+};
+use std::cmp::min;
 
 // https://www.unicode.org/reports/tr15/#Detecting_Normalization_Forms
 
@@ -54,25 +57,30 @@ pub fn to_nfc_str(bytes: Vec<u8>) -> Vec<u8> {
 }
 
 // The important bit here is that decompose is recursive.
-fn decompose(cp: u32) -> Vec<u32> {
+pub fn decompose(cp: u32) -> Vec<u32> {
     match decomposition_mapping(cp) {
         None => vec![cp],
-        Some(dm) => dm.into_iter().flat_map(decompose).collect()
+        Some(dm) => dm.into_iter().flat_map(decompose).collect(),
     }
 }
 
 // Decompose and canonically order the code points. Canonical ordering needs to use a stable sort,
 // which luckily Rust's default sort is.
-fn to_nfd(code_points: &Vec<u32>) -> Vec<u32> {
-    let mut decomposed: Vec<u32> = code_points.into_iter()
-        .fold(Vec::new(), |mut acc, cp| {
-            acc.extend(decompose(*cp));
-            acc
-        });
+pub fn to_nfd(code_points: &Vec<u32>) -> Vec<u32> {
+    let mut decomposed: Vec<u32> = code_points.into_iter().fold(Vec::new(), |mut acc, cp| {
+        acc.extend(decompose(*cp));
+        acc
+    });
     let mut pos = 0;
     while pos < decomposed.len() {
-        let next_starter_offset = decomposed[pos..].iter().skip(1).position(|cp| is_starter(*cp)).map(|offset| offset + 1).unwrap_or(decomposed.len() - pos);
-        decomposed[pos..(pos + next_starter_offset)].sort_by(|a, b| combining_class(*a).cmp(&combining_class(*b)));
+        let next_starter_offset = decomposed[pos..]
+            .iter()
+            .skip(1)
+            .position(|cp| is_starter(*cp))
+            .map(|offset| offset + 1)
+            .unwrap_or(decomposed.len() - pos);
+        decomposed[pos..(pos + next_starter_offset)]
+            .sort_by(|a, b| combining_class(*a).cmp(&combining_class(*b)));
         pos += next_starter_offset
     }
     decomposed
@@ -99,9 +107,13 @@ fn to_nfc(code_points: &Vec<u32>) -> Vec<u32> {
                     // A starter-combining mark pair may be blocked by an intervening combining mark
                     // if they have equal combining classes. Given A B C, if A + C form a pair, but
                     // both B and C have the combining class 200, C is blocked by B.
-                    if ccc > 0 && ccc == last_ccc { break; }
+                    if ccc > 0 && ccc == last_ccc {
+                        break;
+                    }
                     // A starter-starter pair is blocked if there are combining marks in between.
-                    if ccc < last_ccc { break; }
+                    if ccc < last_ccc {
+                        break;
+                    }
                     // If not blocked, replace the starter with the composite, remove the other half,
                     // and go back and try again. It's necessary to retry in place, because you can
                     // have A B C, where A and B produce D, and D and C produce E. So we don't just
@@ -115,18 +127,22 @@ fn to_nfc(code_points: &Vec<u32>) -> Vec<u32> {
                 }
             }
         } else {
-            match nfd[pos..].iter().skip(1).position(|cp| is_starter(*cp)).map(|offset| offset + 1) {
+            match nfd[pos..]
+                .iter()
+                .skip(1)
+                .position(|cp| is_starter(*cp))
+                .map(|offset| offset + 1)
+            {
                 Some(offset) => {
                     pos += offset;
                     try_compose = true;
                 }
-                None => break
+                None => break,
             }
         }
     }
     nfd
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -164,7 +180,15 @@ mod tests {
     }
 
     fn parse_line(line: &str) -> Vec<Vec<u32>> {
-        line.split(";").take(5).map(|block| block.split_whitespace().map(|s| u32::from_str_radix(s, 16).unwrap()).collect()).collect()
+        line.split(";")
+            .take(5)
+            .map(|block| {
+                block
+                    .split_whitespace()
+                    .map(|s| u32::from_str_radix(s, 16).unwrap())
+                    .collect()
+            })
+            .collect()
     }
 
     fn load_test_cases() -> Vec<Vec<Vec<u32>>> {
@@ -179,10 +203,16 @@ mod tests {
     #[test]
     fn test_quick_check() {
         // "å"
-        assert_eq!(quick_check(&vec![0x00E5], Normalisation::NFC), IsNormalised::Yes);
+        assert_eq!(
+            quick_check(&vec![0x00E5], Normalisation::NFC),
+            IsNormalised::Yes
+        );
         // "å" decomposed, quick check says maybe, because there are combining marks
         // it's actually not normalised, but those code points could make up a normalised string
-        assert_eq!(quick_check(&vec![0x61, 0x030A], Normalisation::NFC), IsNormalised::Maybe);
+        assert_eq!(
+            quick_check(&vec![0x61, 0x030A], Normalisation::NFC),
+            IsNormalised::Maybe
+        );
 
         for case in load_test_cases() {
             // This is the NFC normalised case, so quick check can only identify that it's not not normalised.

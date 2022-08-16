@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
-use lazy_static::lazy_static;
 use crate::normalise::Normalisation;
+use lazy_static::lazy_static;
+use std::collections::{HashMap, HashSet};
 
 // The simplest way to get them is to extract them from the XML, because otherwise they're spread
 // out over two files, DerivedNormalizationProps and UCDData. But actually parsing the XML is a
@@ -83,14 +83,25 @@ lazy_static! {
     static ref CASE_IGNORABLE: HashSet<u32> = serde_json::from_str(
         &std::fs::read_to_string(std::path::Path::new("resources/case-ignorable.json")
     ).unwrap()).unwrap();
+
+    // cat ucd.all.flat.xml | grep -v ' cf="#"' | grep ' cf=' (don't want sfc, simple case folding)
+    static ref FULL_CASE_FOLDING: HashMap<u32, Vec<u32>> = serde_json::from_str(
+        &std::fs::read_to_string(std::path::Path::new("resources/case-folding.json")
+    ).unwrap()).unwrap();
+
 }
 
 pub fn decomposition_mapping(code_point: u32) -> Option<Vec<u32>> {
-    DECOMPOSITION_MAPPINGS.get(&code_point).map(|mapping| mapping.clone())
+    DECOMPOSITION_MAPPINGS
+        .get(&code_point)
+        .map(|mapping| mapping.clone())
 }
 
 pub fn combining_class(code_point: u32) -> u8 {
-    COMBINING_CLASSES.get(&code_point).map(|ccc| *ccc).unwrap_or(0)
+    COMBINING_CLASSES
+        .get(&code_point)
+        .map(|ccc| *ccc)
+        .unwrap_or(0)
 }
 
 pub fn is_starter(code_point: u32) -> bool {
@@ -144,4 +155,8 @@ pub fn cased(code_point: u32) -> bool {
 
 pub fn case_ignorable(code_point: u32) -> bool {
     CASE_IGNORABLE.contains(&code_point)
+}
+
+pub fn case_folding(code_point: u32) -> Option<Vec<u32>> {
+    FULL_CASE_FOLDING.get(&code_point).map(|cps| cps.clone())
 }

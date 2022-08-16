@@ -6,7 +6,7 @@ fn bytes_remaining(code_unit: &CodeUnit) -> usize {
         CodeUnit::DoublePrefix => 1,
         CodeUnit::TriplePrefix => 2,
         CodeUnit::QuadPrefix => 3,
-        _ => unreachable!()
+        _ => unreachable!(),
     }
 }
 
@@ -16,7 +16,7 @@ fn is_overlong(code_point: u32, code_unit: &CodeUnit) -> bool {
         CodeUnit::DoublePrefix => code_point < 0x0080,
         CodeUnit::TriplePrefix => code_point < 0x0800,
         CodeUnit::QuadPrefix => code_point < 0x10000,
-        CodeUnit::Continuation => unreachable!()
+        CodeUnit::Continuation => unreachable!(),
     }
 }
 
@@ -26,8 +26,12 @@ pub fn validate(input: &[u8]) -> Result<(), (DecodeErr, usize)> {
     while pos < len {
         let code_unit = CodeUnit::try_from(input[pos]).map_err(|de| (de, pos))?;
         match code_unit {
-            CodeUnit::SingleByte => { pos += 1; }
-            CodeUnit::Continuation => { return Err((DecodeErr::UnexpectedContinuation, pos)); }
+            CodeUnit::SingleByte => {
+                pos += 1;
+            }
+            CodeUnit::Continuation => {
+                return Err((DecodeErr::UnexpectedContinuation, pos));
+            }
             _ => {
                 let remaining = bytes_remaining(&code_unit);
                 if pos + remaining >= len {
@@ -36,14 +40,20 @@ pub fn validate(input: &[u8]) -> Result<(), (DecodeErr, usize)> {
                 for i in 1..=remaining {
                     match CodeUnit::try_from(input[pos + i]) {
                         Ok(CodeUnit::Continuation) => {}
-                        _ => { return Err((DecodeErr::IncompleteCharacter, pos)); }
+                        _ => {
+                            return Err((DecodeErr::IncompleteCharacter, pos));
+                        }
                     }
                 }
                 let code_point = match code_unit {
                     CodeUnit::DoublePrefix => decode_double(input[pos], input[pos + 1]),
-                    CodeUnit::TriplePrefix => decode_triple(input[pos], input[pos + 1], input[pos + 2]),
-                    CodeUnit::QuadPrefix => decode_quad(input[pos], input[pos + 1], input[pos + 2], input[pos + 3]),
-                    _ => unreachable!()
+                    CodeUnit::TriplePrefix => {
+                        decode_triple(input[pos], input[pos + 1], input[pos + 2])
+                    }
+                    CodeUnit::QuadPrefix => {
+                        decode_quad(input[pos], input[pos + 1], input[pos + 2], input[pos + 3])
+                    }
+                    _ => unreachable!(),
                 };
                 if !is_valid_codepoint(code_point) {
                     return Err((DecodeErr::InvalidCodePoint, pos));
@@ -57,7 +67,6 @@ pub fn validate(input: &[u8]) -> Result<(), (DecodeErr, usize)> {
     }
     return Ok(());
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -73,8 +82,14 @@ mod tests {
         let xs = b"hello\xFF";
         assert!(validate(xs).is_err());
 
-        assert_eq!(validate(&[0xF0, 0x80, 0x80, 0x41]), Err((DecodeErr::IncompleteCharacter, 0)));
-        assert_eq!(validate(&[0xC2, 0x41, 0x42]), Err((DecodeErr::IncompleteCharacter, 0)));
+        assert_eq!(
+            validate(&[0xF0, 0x80, 0x80, 0x41]),
+            Err((DecodeErr::IncompleteCharacter, 0))
+        );
+        assert_eq!(
+            validate(&[0xC2, 0x41, 0x42]),
+            Err((DecodeErr::IncompleteCharacter, 0))
+        );
 
         // invalid prefix
         assert!((validate(&[0x80]).is_err()));

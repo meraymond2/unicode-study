@@ -3,7 +3,6 @@ use crate::validate::validate;
 
 const REPLACEMENT: &[u8] = &[0xEF, 0xBF, 0xBD];
 
-
 pub fn fix(input: Vec<u8>) -> Vec<u8> {
     match validate(&input) {
         Ok(_) => input,
@@ -26,7 +25,10 @@ pub fn fix(input: Vec<u8>) -> Vec<u8> {
                         fixed.extend_from_slice(REPLACEMENT);
                         let code_unit = CodeUnit::try_from(input[pos]).unwrap();
                         let expected_continuations = &input[(pos + 1)..(pos + code_unit.len())];
-                        let end = expected_continuations.iter().position(|c_u| CodeUnit::try_from(*c_u) != Ok(CodeUnit::Continuation)).unwrap();
+                        let end = expected_continuations
+                            .iter()
+                            .position(|c_u| CodeUnit::try_from(*c_u) != Ok(CodeUnit::Continuation))
+                            .unwrap();
                         pos += 1 + end;
                     }
                     DecodeErr::InvalidCodePoint => {
@@ -39,7 +41,9 @@ pub fn fix(input: Vec<u8>) -> Vec<u8> {
                         let code_unit = CodeUnit::try_from(input[pos]).unwrap();
                         pos += code_unit.len();
                     }
-                    DecodeErr::UnexpectedContinuation => { pos += 1; }
+                    DecodeErr::UnexpectedContinuation => {
+                        pos += 1;
+                    }
                 }
             }
             fixed.extend_from_slice(&input[pos..len]);
@@ -47,7 +51,6 @@ pub fn fix(input: Vec<u8>) -> Vec<u8> {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -57,7 +60,10 @@ mod tests {
     fn test_fix() {
         assert_eq!(fix(vec![0xc0, 0x80]), REPLACEMENT);
         assert_eq!(fix(vec![0xc0, 0xAE]), REPLACEMENT);
-        assert_eq!(fix(vec![0xF0, 0x80, 0x80, 0x41]), vec![0xEF, 0xBF, 0xBD, 0x41]);
+        assert_eq!(
+            fix(vec![0xF0, 0x80, 0x80, 0x41]),
+            vec![0xEF, 0xBF, 0xBD, 0x41]
+        );
 
         let xs = b"hello".to_vec();
         let ys = "hello".as_bytes();

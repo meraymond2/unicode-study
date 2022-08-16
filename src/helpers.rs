@@ -38,7 +38,7 @@ impl TryFrom<u8> for CodeUnit {
             0b1100_0000..=0b1101_1111 => Ok(CodeUnit::DoublePrefix),
             0b1110_0000..=0b1110_1111 => Ok(CodeUnit::TriplePrefix),
             0b1111_0000..=0b1111_0111 => Ok(CodeUnit::QuadPrefix),
-            _ => Err(DecodeErr::InvalidCodeUnit)
+            _ => Err(DecodeErr::InvalidCodeUnit),
         }
     }
 }
@@ -49,7 +49,6 @@ pub fn is_valid_codepoint(code_point: u32) -> bool {
     let not_half_of_utf16_surrogate_pair = code_point < 0xD800 || code_point > 0xDFFF;
     return below_max_code_point && not_half_of_utf16_surrogate_pair;
 }
-
 
 const CLEAR_12: u8 = 0b0011_1111;
 const CLEAR_1234: u8 = 0b0000_1111;
@@ -80,7 +79,6 @@ pub fn decode_quad(first: u8, second: u8, third: u8, fourth: u8) -> u32 {
     let low_byte = (third << 6 & CLEAR_345678) | (fourth & CLEAR_12);
     return u32::from_be_bytes([0, high_byte, middle_byte, low_byte]);
 }
-
 
 pub fn encode_utf8(code_point: u32) -> Vec<u8> {
     let bytes = code_point.to_be_bytes();
@@ -157,6 +155,9 @@ mod tests {
 
     #[test]
     fn test_decode_quad() {
-        assert_eq!(decode_quad(0b11110000, 0b10010000, 0b10001101, 0b10001000), 0x10348);
+        assert_eq!(
+            decode_quad(0b11110000, 0b10010000, 0b10001101, 0b10001000),
+            0x10348
+        );
     }
 }
