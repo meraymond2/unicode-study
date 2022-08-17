@@ -1,5 +1,6 @@
 use crate::normalise::Normalisation;
 use lazy_static::lazy_static;
+use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 
 // The simplest way to get them is to extract them from the XML, because otherwise they're spread
@@ -89,6 +90,13 @@ lazy_static! {
         &std::fs::read_to_string(std::path::Path::new("resources/case-folding.json")
     ).unwrap()).unwrap();
 
+    // Doesn't include codepoints whose value is XX, because there are 131350 of those, whereas the
+    // rest only total 14190.
+    // grep 'GCB='
+    static ref GRAPHEME_CLUSTER_BREAK: HashMap<u32, GraphemeClusterBreak> = serde_json::from_str(
+        &std::fs::read_to_string(std::path::Path::new("resources/grapheme-cluster-break.json")
+    ).unwrap()).unwrap();
+
 }
 
 pub fn decomposition_mapping(code_point: u32) -> Option<Vec<u32>> {
@@ -159,4 +167,34 @@ pub fn case_ignorable(code_point: u32) -> bool {
 
 pub fn case_folding(code_point: u32) -> Option<Vec<u32>> {
     FULL_CASE_FOLDING.get(&code_point).map(|cps| cps.clone())
+}
+
+// https://unicode.org/reports/tr29/#Grapheme_Cluster_Break_Property_Values
+#[derive(Copy, Clone, Deserialize, Debug, PartialEq)]
+pub enum GraphemeClusterBreak {
+    CN,  // control char, separator
+    CR,  // carriage return
+    EB,  // e_base, obsolete & unused
+    EBG, // e_base_gwz, obsolete & unused
+    EM,  // e_modifier, obsolete & unused
+    EX,  // extend
+    GAZ, // glue after zwj, obsolete & unused
+    L,   // Hangul Syllable Type L
+    LF,  // line feed
+    LV,  // Hangul Syllable Type LV
+    LVT, // Hangul Syllable Type LVT
+    PP,  // prepend
+    RI,  // regional indicator
+    SM,  // spacing mark
+    T,   // Hangul Syllable Type T
+    V,   // Hangul Syllable Type V
+    XX,  // unknown
+    ZWJ, // zero width joiner
+}
+
+pub fn grapheme_cluster_break(code_point: u32) -> GraphemeClusterBreak {
+    GRAPHEME_CLUSTER_BREAK
+        .get(&code_point)
+        .map(|gcb| *gcb)
+        .unwrap_or(GraphemeClusterBreak::XX)
 }
