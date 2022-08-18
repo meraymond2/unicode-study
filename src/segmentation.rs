@@ -35,6 +35,13 @@ impl<'a> Iterator for GraphemeIter<'a> {
         }
         let start = self.pos;
         let mut ri_count = 0;
+
+        // Need to do: \p{Extended_Pictographic} Extend* ZWJ 	× 	\p{Extended_Pictographic}
+        // that's another prop ExtPict="Y"
+        // I think this can be better done with a code point iterator, I can possibly peek a the next one.
+        // Cause I need to walk forward through an arbitrary number of code points to keep track of the
+        // state.
+
         while self.pos < self.code_points.len() - 1 {
             let cp = grapheme_cluster_break(self.code_points[self.pos]);
             let next = grapheme_cluster_break(self.code_points[self.pos + 1]);
@@ -57,7 +64,7 @@ impl<'a> Iterator for GraphemeIter<'a> {
                 (V, T) => self.pos += 1,                        // GB7
                 (LVT, T) => self.pos += 1,                      // GB8
                 (T, T) => self.pos += 1,                        // GB8
-                (_, EX) => self.pos += 1,                      // GB9
+                (_, EX) => self.pos += 1,                       // GB9
                 (_, ZWJ) => self.pos += 1,                      // GB9
                 (_, SM) => self.pos += 1,                       // GB9a
                 (PP, _) => self.pos += 1,                       // GB9b

@@ -97,6 +97,11 @@ lazy_static! {
         &std::fs::read_to_string(std::path::Path::new("resources/grapheme-cluster-break.json")
     ).unwrap()).unwrap();
 
+     // grep 'ExtPict="Y"'
+    static ref EXTENDED_PICTORIAL: HashSet<u32> = serde_json::from_str(
+        &std::fs::read_to_string(std::path::Path::new("resources/extended-pictorial.json")
+    ).unwrap()).unwrap();
+
 }
 
 pub fn decomposition_mapping(code_point: u32) -> Option<Vec<u32>> {
@@ -197,4 +202,8 @@ pub fn grapheme_cluster_break(code_point: u32) -> GraphemeClusterBreak {
         .get(&code_point)
         .map(|gcb| *gcb)
         .unwrap_or(GraphemeClusterBreak::XX)
+}
+
+pub fn extended_pictorial(code_point: u32) -> bool {
+    EXTENDED_PICTORIAL.contains(&code_point)
 }
