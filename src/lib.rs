@@ -1,8 +1,8 @@
+pub mod case;
 mod cp_iter;
+pub mod fix;
 mod helpers;
-mod segmentation;
+pub mod normalise;
+pub mod segmentation;
 mod ucd;
 mod validate;
-pub mod case;
-pub mod fix;
-pub mod normalise;

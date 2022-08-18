@@ -1,6 +1,6 @@
 // Implementation of default, non-locale specific grapheme cluster boundaries.
 
-use crate::ucd::{grapheme_cluster_break, GraphemeClusterBreak};
+use crate::ucd::{extended_pictorial, grapheme_cluster_break, GraphemeClusterBreak};
 
 pub struct GraphemeIter<'a> {
     code_points: &'a Vec<u32>,
@@ -33,42 +33,50 @@ impl<'a> Iterator for GraphemeIter<'a> {
             self.pos += 1;
             return Some(&self.code_points[start..]);
         }
+
         let start = self.pos;
         let mut ri_count = 0;
-
-        // Need to do: \p{Extended_Pictographic} Extend* ZWJ 	× 	\p{Extended_Pictographic}
-        // that's another prop ExtPict="Y"
-        // I think this can be better done with a code point iterator, I can possibly peek a the next one.
-        // Cause I need to walk forward through an arbitrary number of code points to keep track of the
-        // state.
-
         while self.pos < self.code_points.len() - 1 {
             let cp = grapheme_cluster_break(self.code_points[self.pos]);
             let next = grapheme_cluster_break(self.code_points[self.pos + 1]);
             ri_count = if cp == RI { ri_count + 1 } else { 0 };
             match (cp, next) {
-                (CR, LF) => self.pos += 1,                      // GB3
-                (CN, _) => break,                               // GB4
-                (CR, _) => break,                               // GB4
-                (LF, _) => break,                               // GB4
-                (_, CN) => break,                               // GB5
-                (_, CR) => break,                               // GB5
-                (_, LF) => break,                               // GB5
-                (L, L) => self.pos += 1,                        // GB6
-                (L, V) => self.pos += 1,                        // GB6
-                (L, LV) => self.pos += 1,                       // GB6
-                (L, LVT) => self.pos += 1,                      // GB6
-                (LV, V) => self.pos += 1,                       // GB7
-                (LV, T) => self.pos += 1,                       // GB7
-                (V, V) => self.pos += 1,                        // GB7
-                (V, T) => self.pos += 1,                        // GB7
-                (LVT, T) => self.pos += 1,                      // GB8
-                (T, T) => self.pos += 1,                        // GB8
-                (_, EX) => self.pos += 1,                       // GB9
-                (_, ZWJ) => self.pos += 1,                      // GB9
-                (_, SM) => self.pos += 1,                       // GB9a
-                (PP, _) => self.pos += 1,                       // GB9b
-                (RI, RI) if ri_count % 2 == 0 => break,         // GB12/3
+                (CR, LF) => self.pos += 1, // GB3
+                (CN, _) => break,          // GB4
+                (CR, _) => break,          // GB4
+                (LF, _) => break,          // GB4
+                (_, CN) => break,          // GB5
+                (_, CR) => break,          // GB5
+                (_, LF) => break,          // GB5
+                (L, L) => self.pos += 1,   // GB6
+                (L, V) => self.pos += 1,   // GB6
+                (L, LV) => self.pos += 1,  // GB6
+                (L, LVT) => self.pos += 1, // GB6
+                (LV, V) => self.pos += 1,  // GB7
+                (LV, T) => self.pos += 1,  // GB7
+                (V, V) => self.pos += 1,   // GB7
+                (V, T) => self.pos += 1,   // GB7
+                (LVT, T) => self.pos += 1, // GB8
+                (T, T) => self.pos += 1,   // GB8
+                (_, EX) => self.pos += 1,  // GB9
+                (_, ZWJ) => self.pos += 1, // GB9
+                (_, SM) => self.pos += 1,  // GB9a
+                (PP, _) => self.pos += 1,  // GB9b
+                (ZWJ, XX) if extended_pictorial(self.code_points[self.pos + 1]) && self.pos > 0 => {
+                    // Backtrack to see if the previous cps match this regex
+                    // TODO: do this without backtracking
+                    // \p{Extended_Pictographic} Extend* ZWJ 	× 	\p{Extended_Pictographic}
+                    let mut pos = self.pos - 1;
+                    while pos > 0 && grapheme_cluster_break(self.code_points[pos]) == EX {
+                        pos -= 1;
+                    }
+                    if extended_pictorial(self.code_points[pos]) {
+                        self.pos += 1;
+                    } else {
+                        break;
+                    }
+                } // GB11
+                (RI, RI) if ri_count % 2 == 0 => break, // GB12/3
                 (RI, RI) if ri_count % 2 == 1 => self.pos += 1, // GB12/3
                 _ => break,
             }
