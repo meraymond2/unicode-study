@@ -102,6 +102,12 @@ lazy_static! {
         &std::fs::read_to_string(std::path::Path::new("resources/extended-pictorial.json")
     ).unwrap()).unwrap();
 
+    static ref COLLATION_ELEMENTS_MAPPING:HashMap<Vec<u32>, Vec<CollationElement >> = {
+        let f = std::fs::File::open("resources/collation-elements.json").unwrap();
+        let rdr = std::io::BufReader::new(f);
+        let pairs: Vec<(Vec<u32>, Vec<CollationElement>)> = serde_json::from_reader(rdr).unwrap();
+        HashMap::from_iter(pairs.into_iter())
+    };
 }
 
 pub fn decomposition_mapping(code_point: u32) -> Option<Vec<u32>> {
@@ -206,4 +212,16 @@ pub fn grapheme_cluster_break(code_point: u32) -> GraphemeClusterBreak {
 
 pub fn extended_pictorial(code_point: u32) -> bool {
     EXTENDED_PICTORIAL.contains(&code_point)
+}
+
+#[derive(Clone, Deserialize)]
+pub struct CollationElement {
+    weights: [u32; 3],
+    variable: bool,
+}
+
+pub fn collation_elements(code_points: &Vec<u32>) -> Option<Vec<CollationElement>> {
+    COLLATION_ELEMENTS_MAPPING
+        .get(code_points)
+        .map(|elements| (*elements).to_vec())
 }
