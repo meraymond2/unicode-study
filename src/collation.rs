@@ -44,7 +44,7 @@ fn to_collation_elements(
                 while let Some(cp) = nfd.get(pos + offset) {
                     // S2.1.2 If C is an unblocked non-starter with respect to S, find if S + C has a match in the collation element table.
                     let cc = combining_class(*cp);
-                    let unblocked_non_starter = !is_starter(*cp) && cc >= last_cc;
+                    let unblocked_non_starter = !is_starter(*cp) && cc > last_cc;
                     if unblocked_non_starter {
                         s.push(*cp);
                         // S2.1.3 If there is a match, replace S by S + C, and remove C.
