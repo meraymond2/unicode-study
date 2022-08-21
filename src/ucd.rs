@@ -216,8 +216,8 @@ pub fn extended_pictorial(code_point: u32) -> bool {
 
 #[derive(Clone, Deserialize)]
 pub struct CollationElement {
-    weights: [u32; 3],
-    variable: bool,
+    pub weights: Vec<u16>,
+    pub variable: bool,
 }
 
 pub fn collation_elements(code_points: &Vec<u32>) -> Option<Vec<CollationElement>> {

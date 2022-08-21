@@ -1,5 +1,5 @@
 pub mod case;
-mod collation;
+pub mod collation;
 mod cp_iter;
 pub mod fix;
 mod helpers;
