@@ -6,11 +6,10 @@ use crate::ucd::{collation_elements, combining_class, is_starter, CollationEleme
 // Produce an array of collation elements for each string.
 // Produce a sort key for each string from the arrays of collation elements.
 // Compare the two sort keys with a binary comparison operation.
-pub fn collate(code_points: &Vec<u32>, variable_weighting: &VariableWeighting) -> Vec<u32> {
+pub fn sort_key(code_points: &Vec<u32>, variable_weighting: &VariableWeighting) -> Vec<u16> {
     let mut nfd = to_nfd(code_points);
-    let _collation_elements = to_collation_elements(&mut nfd, variable_weighting);
-
-    Vec::new()
+    let collation_elements = to_collation_elements(&mut nfd, variable_weighting);
+    to_sort_key(collation_elements)
 }
 
 fn to_collation_elements(
@@ -74,6 +73,23 @@ fn to_collation_elements(
     acc_collation_elements
 }
 
+fn to_sort_key(ces: Vec<CollationElement>) -> Vec<u16> {
+    let weight_count = ces[0].weights.len();
+    let level_separator = 0;
+    let mut sort_key = Vec::new();
+    for level in 0..weight_count {
+        for ce in ces.iter() {
+            let weight = ce.weights[level];
+            if weight > 0 {
+                sort_key.push(weight);
+            }
+        }
+        sort_key.push(level_separator);
+    }
+    sort_key.pop(); // remove trailing separator
+    sort_key
+}
+
 pub enum VariableWeighting {
     NonIgnorable, // sort punctuation as distinct chars
     Blanked,      // ignore punctuation
@@ -82,7 +98,7 @@ pub enum VariableWeighting {
 }
 
 fn derive_collation_elements(_s: Vec<u32>) -> Vec<CollationElement> {
-    todo!() // CJK
+    todo!("oops") // CJK
 }
 
 fn apply_variable_weighting(
@@ -112,4 +128,55 @@ fn apply_variable_weighting(
 // UTS10-D14. Ignorable Collation Element: A collation element which is not a primary collation element.
 fn ignorable(ce: &CollationElement) -> bool {
     ce.weights[0] == 0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse_line(line: &str) -> (Vec<u32>, Vec<u16>) {
+        let cps: Vec<u32> = line
+            .split_once(";")
+            .unwrap()
+            .0
+            .split_whitespace()
+            .map(|s| u32::from_str_radix(s, 16).unwrap())
+            .collect();
+        let second_split: Vec<&str> = line.split("[").collect();
+        let mut sort_keys_str = second_split.last().unwrap().to_string();
+        sort_keys_str.pop(); // pop "]"
+        let sort_keys = sort_keys_str
+            .replace("|", "0000")
+            .split_whitespace()
+            .map(|s| {
+                vec![
+                    u16::from_str_radix(&s[0..2], 16).unwrap(),
+                    u16::from_str_radix(&s[2..4], 16).unwrap(),
+                ]
+            })
+            .flatten()
+            .collect();
+        (cps, sort_keys)
+    }
+
+    fn load_test_cases() -> Vec<(Vec<u32>, Vec<u16>)> {
+        std::fs::read_to_string(std::path::Path::new(
+            "resources/CollationTest_NON_IGNORABLE.txt",
+        ))
+        .unwrap()
+        .split("\n")
+        .filter(|line| !line.is_empty() && !line.starts_with("#"))
+        .map(parse_line)
+        .collect()
+    }
+
+    #[test]
+    fn test_sort_key() {
+        for (code_points, expected_sort_key) in load_test_cases() {
+            assert_eq!(
+                sort_key(&code_points, &VariableWeighting::NonIgnorable),
+                expected_sort_key
+            );
+        }
+    }
 }
