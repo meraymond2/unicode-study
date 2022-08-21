@@ -88,7 +88,7 @@ fn to_sort_key(ces: Vec<CollationElement>) -> Vec<u16> {
         }
         sort_key.push(level_separator);
     }
-    sort_key.pop(); // remove trailing separator
+    // sort_key.pop(); // remove trailing separator // undo, test doesn't like this
     sort_key
 }
 
@@ -183,13 +183,7 @@ mod tests {
         let sort_keys = sort_keys_str
             .replace("|", "0000")
             .split_whitespace()
-            .map(|s| {
-                vec![
-                    u16::from_str_radix(&s[0..2], 16).unwrap(),
-                    u16::from_str_radix(&s[2..4], 16).unwrap(),
-                ]
-            })
-            .flatten()
+            .map(|s| u16::from_str_radix(s, 16).unwrap())
             .collect();
         (cps, sort_keys)
     }
@@ -207,11 +201,14 @@ mod tests {
 
     #[test]
     fn test_sort_key() {
+        let mut i = 0;
         for (code_points, expected_sort_key) in load_test_cases() {
             assert_eq!(
                 sort_key(&code_points, &VariableWeighting::NonIgnorable),
                 expected_sort_key
             );
+            i += 1;
+            // println!("{}", i);
         }
     }
 }

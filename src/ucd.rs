@@ -219,7 +219,7 @@ pub fn extended_pictorial(code_point: u32) -> bool {
     EXTENDED_PICTORIAL.contains(&code_point)
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct CollationElement {
     pub weights: Vec<u16>,
     pub variable: bool,
