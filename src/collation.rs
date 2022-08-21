@@ -21,44 +21,40 @@ fn to_collation_elements(
     let mut acc_collation_elements = Vec::new();
     let mut pos = 0;
     while pos < nfd.len() {
-        // S2.1 Find the longest initial substring S at each point that has a match in the collation element table.
-        // S is either a series of contiguous code points, or a starter and zero or more (dis)contiguous non-starters.
         let mut s: Vec<u32> = vec![nfd[pos]];
-        match nfd.get(pos + 1).map(|cp| is_starter(*cp)) {
-            None => {}
-            Some(true) => {
-                while let Some(cp) = nfd.get(pos + 1) {
-                    s.push(*cp);
-                    if collation_elements(&s).is_some() {
-                        nfd.remove(pos + 1);
-                    } else {
-                        s.pop();
-                        break;
-                    }
+        // S2.1 Find the longest initial substring S at each point that has a match in the collation element table.
+        if let Some(true) = nfd.get(pos + 1).map(|cp| is_starter(*cp)) {
+            while let Some(cp) = nfd.get(pos + 1) {
+                s.push(*cp);
+                if collation_elements(&s).is_some() {
+                    nfd.remove(pos + 1);
+                } else {
+                    s.pop();
+                    break;
                 }
             }
-            Some(false) => {
-                // S2.1.1 If there are any non-starters following S, process each non-starter C.
-                let mut last_cc = 0;
-                let mut offset = pos + 1;
-                while let Some(cp) = nfd.get(pos + offset) {
-                    // S2.1.2 If C is an unblocked non-starter with respect to S, find if S + C has a match in the collation element table.
-                    let cc = combining_class(*cp);
-                    let unblocked_non_starter = !is_starter(*cp) && cc > last_cc;
-                    if unblocked_non_starter {
-                        s.push(*cp);
-                        // S2.1.3 If there is a match, replace S by S + C, and remove C.
-                        if collation_elements(&s).is_some() {
-                            nfd.remove(pos + offset);
-                        } else {
-                            s.pop();
-                            offset += 1;
-                        }
+        }
+        // S2.1.1 If there are any non-starters following S, process each non-starter C.
+        if let Some(false) = nfd.get(pos + 1).map(|cp| is_starter(*cp)) {
+            let mut last_cc = 0;
+            let mut offset = 1;
+            while let Some(cp) = nfd.get(pos + offset) {
+                // S2.1.2 If C is an unblocked non-starter with respect to S, find if S + C has a match in the collation element table.
+                let cc = combining_class(*cp);
+                let unblocked_non_starter = !is_starter(*cp) && cc > last_cc;
+                if unblocked_non_starter {
+                    s.push(*cp);
+                    // S2.1.3 If there is a match, replace S by S + C, and remove C.
+                    if collation_elements(&s).is_some() {
+                        nfd.remove(pos + offset);
                     } else {
-                        break;
+                        s.pop();
+                        offset += 1;
                     }
-                    last_cc = cc;
+                } else {
+                    break;
                 }
+                last_cc = cc;
             }
         }
         // S2.2 Fetch the corresponding collation element(s) from the table if there is a match. If
