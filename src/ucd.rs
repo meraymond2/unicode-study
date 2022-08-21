@@ -108,6 +108,11 @@ lazy_static! {
         let pairs: Vec<(Vec<u32>, Vec<CollationElement>)> = serde_json::from_reader(rdr).unwrap();
         HashMap::from_iter(pairs.into_iter())
     };
+
+    // grep 'UIdeo="Y"'
+    static ref UNIFIED_IDEOGRAPHS: HashSet<u32> = serde_json::from_str(
+        &std::fs::read_to_string(std::path::Path::new("resources/unified-ideograph.json")
+    ).unwrap()).unwrap();
 }
 
 pub fn decomposition_mapping(code_point: u32) -> Option<Vec<u32>> {
@@ -224,4 +229,8 @@ pub fn collation_elements(code_points: &Vec<u32>) -> Option<Vec<CollationElement
     COLLATION_ELEMENTS_MAPPING
         .get(code_points)
         .map(|elements| (*elements).to_vec())
+}
+
+pub fn unified_ideograph(code_point: u32) -> bool {
+    UNIFIED_IDEOGRAPHS.contains(&code_point)
 }

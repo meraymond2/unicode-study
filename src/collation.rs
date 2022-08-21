@@ -1,5 +1,7 @@
 use crate::normalise::to_nfd;
-use crate::ucd::{collation_elements, combining_class, is_starter, CollationElement};
+use crate::ucd::{
+    collation_elements, combining_class, is_starter, unified_ideograph, CollationElement,
+};
 
 // https://unicode.org/reports/tr10/#Main_Algorithm
 // Normalize each input string.
@@ -97,8 +99,41 @@ pub enum VariableWeighting {
     ShiftTrimmed,
 }
 
-fn derive_collation_elements(_s: Vec<u32>) -> Vec<CollationElement> {
-    todo!("oops") // CJK
+fn derive_collation_elements(s: Vec<u32>) -> Vec<CollationElement> {
+    let cp = s.first().unwrap();
+    let (aaaa, bbbb) = match cp {
+        // # Tangut and Tangut Components
+        0x17000..=0x18AFF => (0xFB00, cp | 0x8000),
+        // # Tangut Supplement
+        0x18D00..=0x18D8F => (0xFB00, cp | 0x8000),
+        // # Nushu
+        0x1B170..=0x1B2FF => (0xFB01, cp | 0x8000),
+        // # Khitan Small Script
+        0x18B00..=0x18CFF => (0xFB02, cp | 0x8000),
+        // Unified_Ideograph=True AND ((Block=CJK_Unified_Ideograph) OR (Block=CJK_Compatibility_Ideographs))
+        0x4E00..=0x9FFF if unified_ideograph(*cp) => (0xFB40 + (cp >> 15), (cp & 0x7FFF) | 0x8000),
+        0xF900..=0xFAFF if unified_ideograph(*cp) => (0xFB40 + (cp >> 15), (cp & 0x7FFF) | 0x8000),
+        // Unified_Ideograph=True AND NOT ((Block=CJK_Unified_Ideograph) OR (Block=CJK_Compatibility_Ideographs))
+        _ if unified_ideograph(*cp) => (0xFB80 + (cp >> 15), (cp & 0x7FFF) | 0x8000),
+        _ => (0xFBC0 + (cp >> 15), (cp & 0x7FFF) | 0x8000),
+    };
+    // [.AAAA.0020.0002][.BBBB.0000.0000]
+    let a_bytes = aaaa.to_be_bytes();
+    let a1 = u16::from_be_bytes([a_bytes[0], a_bytes[1]]);
+    let a2 = u16::from_be_bytes([a_bytes[2], a_bytes[3]]);
+    let b_bytes = bbbb.to_be_bytes();
+    let b1 = u16::from_be_bytes([b_bytes[0], b_bytes[1]]);
+    let b2 = u16::from_be_bytes([b_bytes[2], b_bytes[3]]);
+    vec![
+        CollationElement {
+            weights: vec![a1, a2, 0x00, 0x20, 0x00, 0x02],
+            variable: false,
+        },
+        CollationElement {
+            weights: vec![b1, b2, 0x00, 0x00, 0x00, 0x00],
+            variable: false,
+        },
+    ]
 }
 
 fn apply_variable_weighting(
