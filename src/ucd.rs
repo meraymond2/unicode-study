@@ -226,6 +226,7 @@ pub struct CollationElement {
     pub variable: bool,
 }
 
+#[derive(Debug)]
 pub enum CollationElementMatch {
     Match(Vec<CollationElement>),
     PartialMatch,

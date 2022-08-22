@@ -24,57 +24,83 @@ fn to_collation_elements(
     while pos < nfd.len() {
         let mut s: Vec<u32> = vec![nfd[pos]];
         // S2.1 Find the longest initial substring S at each point that has a match in the collation element table.
-        let mut partial_start: Option<usize> = None;
-        let mut end = pos;
-        while let Some(cp) = nfd.get(pos + 1) {
-            s.push(*cp);
-            match collation_elements(&s) {
-                CollationElementMatch::Match(_) => {
-                    end += 1;
-                }
-                CollationElementMatch::PartialMatch => {
-                    if partial_start.is_none() { partial_start = Some(end); }
-                    end += 1;
-                }
-                CollationElementMatch::NoMatch => {
-                    s.pop();
-                    if let Some(part_start) = partial_start {
-                        end = part_start;
-                        s.truncate(end - pos);
-                    }
-                    break;
-                }
-            }
-        }
-        pos = end;
+        // if let Some(true) = nfd.get(pos + 1).map(|cp| is_starter(*cp)) {
+        //     while let Some(cp) = nfd.get(pos + 1) {
+        //         s.push(*cp);
+        //         match collation_elements(&s) {
+        //             CollationElementMatch::Match(_) => {
+        //                 nfd.remove(pos + 1);
+        //             }
+        //             CollationElementMatch::PartialMatch => {
+        //                 todo!()
+        //             }
+        //             CollationElementMatch::NoMatch => {
+        //                 s.pop();
+        //                 break;
+        //             }
+        //         }
+        //     }
+        // }
         // S2.1.1 If there are any non-starters following S, process each non-starter C.
+        // Try to consume a contiguous string of non-starters, allowing partial matches. If we
+        // encounter a non-match, or a blocked char, then we reset, and try discontiguous matches.
         if let Some(false) = nfd.get(pos + 1).map(|cp| is_starter(*cp)) {
             let mut last_cc = 0;
             let mut offset = 1;
-            let mut discontiguous = false;
+            let starting_s = s.clone();
+            let mut mid_partial = false;
             while let Some(cp) = nfd.get(pos + offset) {
-                // S2.1.2 If C is an unblocked non-starter with respect to S, find if S + C has a match in the collation element table.
                 let cc = combining_class(*cp);
                 let unblocked_non_starter = !is_starter(*cp) && cc > last_cc;
                 if unblocked_non_starter {
                     s.push(*cp);
-                    // S2.1.3 If there is a match, replace S by S + C, and remove C.
                     match collation_elements(&s) {
                         CollationElementMatch::Match(_) => {
-                            nfd.remove(pos + offset);
+                            mid_partial = false;
+                            offset += 1;
                         }
-                        CollationElementMatch::PartialMatch if !discontiguous => {
-                            // https://perldoc.perl.org/Unicode::Collate#long_contraction
-                            // There's a comment there, which is the best explanation I've found of
-                            // this terrible, terrible spec.
-                            nfd.remove(pos + offset);
+                        CollationElementMatch::PartialMatch => {
+                            mid_partial = true;
+                            offset += 1;
+                        }
+                        CollationElementMatch::NoMatch => {
+                            s.pop();
+                            break;
+                        }
+                    }
+                    last_cc = cc;
+                } else {
+                    break;
+                }
+            }
+            if mid_partial {
+                s = starting_s;
+            } else {
+                pos += offset - 1;
+            }
+        }
+        // See if there are any discontiguous matches.
+        if let Some(false) = nfd.get(pos + 1).map(|cp| is_starter(*cp)) {
+            let mut last_cc = 0;
+            let mut offset = 1;
+            while let Some(cp) = nfd.get(pos + offset) {
+                let cc = combining_class(*cp);
+                // S2.1.2 If C is an unblocked non-starter with respect to S, find if S + C has a match in the collation element table.
+                let unblocked_non_starter = !is_starter(*cp) && cc > last_cc;
+                if unblocked_non_starter {
+                    s.push(*cp);
+                    match collation_elements(&s) {
+                        CollationElementMatch::Match(_) => {
+                            // For this one, we want to rearrange it in the array, and we know
+                            // that we don't need to reset it, because we've already handled
+                            // possible partial matches.
+                            s.push(nfd.remove(pos + offset));
                         }
                         CollationElementMatch::PartialMatch => {
                             s.pop();
                             offset += 1;
                         }
                         CollationElementMatch::NoMatch => {
-                            discontiguous = true;
                             s.pop();
                             offset += 1;
                         }
@@ -85,6 +111,11 @@ fn to_collation_elements(
                 last_cc = cc;
             }
         }
+        pos += 1;
+
+        // https://perldoc.perl.org/Unicode::Collate#long_contraction
+        // There's a comment there, which is the best explanation I've found of
+        // this terrible, terrible spec.
         // S2.2 Fetch the corresponding collation element(s) from the table if there is a match. If
         // there is no match, synthesize a collation element as described in Section 10.1, Derived Collation Elements.
         let mut s_collation_elements = match collation_elements(&s) {
@@ -96,7 +127,6 @@ fn to_collation_elements(
         // S2.4 Append the collation element(s) to the collation element array.
         acc_collation_elements.extend(s_collation_elements);
         // S2.5 Proceed to the next point in the string (past S).
-        pos += 1;
     }
     acc_collation_elements
 }
