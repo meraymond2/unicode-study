@@ -1,6 +1,7 @@
 use crate::normalise::to_nfd;
 use crate::ucd::{
     collation_elements, combining_class, is_starter, unified_ideograph, CollationElement,
+    CollationElementMatch,
 };
 
 // https://unicode.org/reports/tr10/#Main_Algorithm
@@ -26,11 +27,17 @@ fn to_collation_elements(
         if let Some(true) = nfd.get(pos + 1).map(|cp| is_starter(*cp)) {
             while let Some(cp) = nfd.get(pos + 1) {
                 s.push(*cp);
-                if collation_elements(&s).is_some() {
-                    nfd.remove(pos + 1);
-                } else {
-                    s.pop();
-                    break;
+                match collation_elements(&s) {
+                    CollationElementMatch::Match(_) => {
+                        nfd.remove(pos + 1);
+                    }
+                    CollationElementMatch::PartialMatch => {
+                        todo!()
+                    }
+                    CollationElementMatch::NoMatch => {
+                        s.pop();
+                        break;
+                    }
                 }
             }
         }
@@ -38,6 +45,7 @@ fn to_collation_elements(
         if let Some(false) = nfd.get(pos + 1).map(|cp| is_starter(*cp)) {
             let mut last_cc = 0;
             let mut offset = 1;
+            let mut discontiguous = false;
             while let Some(cp) = nfd.get(pos + offset) {
                 // S2.1.2 If C is an unblocked non-starter with respect to S, find if S + C has a match in the collation element table.
                 let cc = combining_class(*cp);
@@ -45,11 +53,25 @@ fn to_collation_elements(
                 if unblocked_non_starter {
                     s.push(*cp);
                     // S2.1.3 If there is a match, replace S by S + C, and remove C.
-                    if collation_elements(&s).is_some() {
-                        nfd.remove(pos + offset);
-                    } else {
-                        s.pop();
-                        offset += 1;
+                    match collation_elements(&s) {
+                        CollationElementMatch::Match(_) => {
+                            nfd.remove(pos + offset);
+                        }
+                        CollationElementMatch::PartialMatch if !discontiguous => {
+                            // https://perldoc.perl.org/Unicode::Collate#long_contraction
+                            // There's a comment there, which is the best explanation I've found of
+                            // this terrible, terrible spec.
+                            nfd.remove(pos + offset);
+                        }
+                        CollationElementMatch::PartialMatch => {
+                            s.pop();
+                            offset += 1;
+                        }
+                        CollationElementMatch::NoMatch => {
+                            discontiguous = true;
+                            s.pop();
+                            offset += 1;
+                        }
                     }
                 } else {
                     break;
@@ -59,8 +81,10 @@ fn to_collation_elements(
         }
         // S2.2 Fetch the corresponding collation element(s) from the table if there is a match. If
         // there is no match, synthesize a collation element as described in Section 10.1, Derived Collation Elements.
-        let mut s_collation_elements =
-            collation_elements(&s).unwrap_or(derive_collation_elements(s));
+        let mut s_collation_elements = match collation_elements(&s) {
+            CollationElementMatch::Match(es) => es,
+            _ => derive_collation_elements(s),
+        };
         // S2.3 Process collation elements according to the variable-weight setting, as described in Section 4, Variable Weighting.
         apply_variable_weighting(&mut s_collation_elements, variable_weighting);
         // S2.4 Append the collation element(s) to the collation element array.

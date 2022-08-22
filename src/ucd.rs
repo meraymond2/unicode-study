@@ -1,4 +1,5 @@
 use crate::normalise::Normalisation;
+use crate::ucd::CollationElementMatch::{NoMatch, PartialMatch};
 use lazy_static::lazy_static;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
@@ -225,10 +226,25 @@ pub struct CollationElement {
     pub variable: bool,
 }
 
-pub fn collation_elements(code_points: &Vec<u32>) -> Option<Vec<CollationElement>> {
-    COLLATION_ELEMENTS_MAPPING
-        .get(code_points)
-        .map(|elements| (*elements).to_vec())
+pub enum CollationElementMatch {
+    Match(Vec<CollationElement>),
+    PartialMatch,
+    NoMatch,
+}
+
+pub fn collation_elements(code_points: &Vec<u32>) -> CollationElementMatch {
+    if let Some(elements) = COLLATION_ELEMENTS_MAPPING.get(code_points) {
+        CollationElementMatch::Match((*elements).to_vec())
+    } else {
+        // TODO: go back and make this less inefficient
+        match COLLATION_ELEMENTS_MAPPING
+            .keys()
+            .find(|k| k.starts_with(code_points))
+        {
+            Some(_) => PartialMatch,
+            None => NoMatch,
+        }
+    }
 }
 
 pub fn unified_ideograph(code_point: u32) -> bool {
