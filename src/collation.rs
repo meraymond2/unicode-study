@@ -94,7 +94,7 @@ fn to_collation_elements(
                             // For this one, we want to rearrange it in the array, and we know
                             // that we don't need to reset it, because we've already handled
                             // possible partial matches.
-                            s.push(nfd.remove(pos + offset));
+                            nfd.remove(pos + offset);
                         }
                         CollationElementMatch::PartialMatch => {
                             s.pop();
@@ -112,7 +112,6 @@ fn to_collation_elements(
             }
         }
         pos += 1;
-
         // https://perldoc.perl.org/Unicode::Collate#long_contraction
         // There's a comment there, which is the best explanation I've found of
         // this terrible, terrible spec.
@@ -260,7 +259,7 @@ mod tests {
         let mut i = 0;
         for (code_points, expected_sort_key) in load_test_cases() {
             if i > 108568 {
-                println!("{:?}", code_points);
+                // println!("{:?}", code_points);
                 assert_eq!(
                     sort_key(&code_points, &VariableWeighting::NonIgnorable),
                     expected_sort_key
