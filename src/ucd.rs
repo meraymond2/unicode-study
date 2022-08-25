@@ -103,7 +103,7 @@ lazy_static! {
         &std::fs::read_to_string(std::path::Path::new("resources/extended-pictorial.json")
     ).unwrap()).unwrap();
 
-    static ref COLLATION_ELEMENTS_MAPPING:HashMap<Vec<u32>, Vec<CollationElement >> = {
+    static ref COLLATION_ELEMENTS_MAPPING:HashMap<Vec<u32>, Vec<CollationElement>> = {
         let f = std::fs::File::open("resources/collation-elements.json").unwrap();
         let rdr = std::io::BufReader::new(f);
         let pairs: Vec<(Vec<u32>, Vec<CollationElement>)> = serde_json::from_reader(rdr).unwrap();

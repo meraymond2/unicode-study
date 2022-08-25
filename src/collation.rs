@@ -250,7 +250,6 @@ mod tests {
 
     #[test]
     fn test_sort_key() {
-        let mut i = 0;
         for (code_points, expected_sort_key) in load_test_cases() {
             assert_eq!(
                 sort_key(&code_points, &VariableWeighting::NonIgnorable),

@@ -5,5 +5,6 @@ pub mod fix;
 mod helpers;
 pub mod normalise;
 pub mod segmentation;
+mod trie;
 mod ucd;
 mod validate;
