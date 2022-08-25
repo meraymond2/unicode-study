@@ -1,7 +1,7 @@
 use crate::normalise::to_nfd;
+use crate::trie::TrieMatch;
 use crate::ucd::{
     collation_elements, combining_class, is_starter, unified_ideograph, CollationElement,
-    CollationElementMatch,
 };
 
 // https://unicode.org/reports/tr10/#Main_Algorithm
@@ -28,13 +28,13 @@ fn to_collation_elements(
             while let Some(cp) = nfd.get(pos + 1) {
                 s.push(*cp);
                 match collation_elements(&s) {
-                    CollationElementMatch::Match(_) => {
+                    TrieMatch::Match(_) => {
                         nfd.remove(pos + 1);
                     }
-                    CollationElementMatch::PartialMatch => {
+                    TrieMatch::PartialMatch => {
                         todo!()
                     }
-                    CollationElementMatch::NoMatch => {
+                    TrieMatch::NoMatch => {
                         s.pop();
                         break;
                     }
@@ -55,15 +55,15 @@ fn to_collation_elements(
                 if unblocked_non_starter {
                     s.push(*cp);
                     match collation_elements(&s) {
-                        CollationElementMatch::Match(_) => {
+                        TrieMatch::Match(_) => {
                             mid_partial = false;
                             offset += 1;
                         }
-                        CollationElementMatch::PartialMatch => {
+                        TrieMatch::PartialMatch => {
                             mid_partial = true;
                             offset += 1;
                         }
-                        CollationElementMatch::NoMatch => {
+                        TrieMatch::NoMatch => {
                             s.pop();
                             break;
                         }
@@ -90,17 +90,17 @@ fn to_collation_elements(
                 if unblocked_non_starter {
                     s.push(*cp);
                     match collation_elements(&s) {
-                        CollationElementMatch::Match(_) => {
+                        TrieMatch::Match(_) => {
                             // For this one, we want to rearrange it in the array, and we know
                             // that we don't need to reset it, because we've already handled
                             // possible partial matches.
                             nfd.remove(pos + offset);
                         }
-                        CollationElementMatch::PartialMatch => {
+                        TrieMatch::PartialMatch => {
                             s.pop();
                             offset += 1;
                         }
-                        CollationElementMatch::NoMatch => {
+                        TrieMatch::NoMatch => {
                             s.pop();
                             offset += 1;
                         }
@@ -118,7 +118,7 @@ fn to_collation_elements(
         // S2.2 Fetch the corresponding collation element(s) from the table if there is a match. If
         // there is no match, synthesize a collation element as described in Section 10.1, Derived Collation Elements.
         let mut s_collation_elements = match collation_elements(&s) {
-            CollationElementMatch::Match(es) => es,
+            TrieMatch::Match(es) => es,
             _ => derive_collation_elements(s),
         };
         // S2.3 Process collation elements according to the variable-weight setting, as described in Section 4, Variable Weighting.
@@ -250,11 +250,17 @@ mod tests {
 
     #[test]
     fn test_sort_key() {
+        // with stupid implementation, 14 seconds to test the first 1000 cases
+        let mut i = 0;
         for (code_points, expected_sort_key) in load_test_cases() {
+            if i > 10000 {
+                break;
+            }
             assert_eq!(
                 sort_key(&code_points, &VariableWeighting::NonIgnorable),
                 expected_sort_key
             );
+            i += 1;
         }
     }
 }

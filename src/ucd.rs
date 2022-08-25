@@ -1,5 +1,5 @@
 use crate::normalise::Normalisation;
-use crate::ucd::CollationElementMatch::{NoMatch, PartialMatch};
+use crate::trie::{Trie, TrieMatch};
 use lazy_static::lazy_static;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
@@ -103,11 +103,11 @@ lazy_static! {
         &std::fs::read_to_string(std::path::Path::new("resources/extended-pictorial.json")
     ).unwrap()).unwrap();
 
-    static ref COLLATION_ELEMENTS_MAPPING:HashMap<Vec<u32>, Vec<CollationElement>> = {
+    static ref COLLATION_ELEMENTS_MAPPING: Trie<Vec<CollationElement>> = {
         let f = std::fs::File::open("resources/collation-elements.json").unwrap();
         let rdr = std::io::BufReader::new(f);
         let pairs: Vec<(Vec<u32>, Vec<CollationElement>)> = serde_json::from_reader(rdr).unwrap();
-        HashMap::from_iter(pairs.into_iter())
+        Trie::from_kvs(pairs)
     };
 
     // grep 'UIdeo="Y"'
@@ -226,26 +226,8 @@ pub struct CollationElement {
     pub variable: bool,
 }
 
-#[derive(Debug)]
-pub enum CollationElementMatch {
-    Match(Vec<CollationElement>),
-    PartialMatch,
-    NoMatch,
-}
-
-pub fn collation_elements(code_points: &Vec<u32>) -> CollationElementMatch {
-    if let Some(elements) = COLLATION_ELEMENTS_MAPPING.get(code_points) {
-        CollationElementMatch::Match((*elements).to_vec())
-    } else {
-        // TODO: go back and make this less inefficient
-        match COLLATION_ELEMENTS_MAPPING
-            .keys()
-            .find(|k| k.starts_with(code_points))
-        {
-            Some(_) => PartialMatch,
-            None => NoMatch,
-        }
-    }
+pub fn collation_elements(code_points: &Vec<u32>) -> TrieMatch<Vec<CollationElement>> {
+    COLLATION_ELEMENTS_MAPPING.get(code_points)
 }
 
 pub fn unified_ideograph(code_point: u32) -> bool {

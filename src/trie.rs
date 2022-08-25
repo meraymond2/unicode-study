@@ -1,21 +1,30 @@
-struct NodeVar<T: Clone> {
+use crate::trie::TrieMatch::PartialMatch;
+
+pub struct Trie<T: Clone> {
     keys: Vec<u8>,
-    nodes: Vec<NodeVar<T>>,
+    nodes: Vec<Trie<T>>,
     val: Option<T>,
 }
 
-impl<T: Clone> NodeVar<T> {
+#[derive(Debug, PartialEq)]
+pub enum TrieMatch<T> {
+    Match(T),
+    PartialMatch,
+    NoMatch,
+}
+
+impl<T: Clone> Trie<T> {
     pub fn from_kvs(pairs: Vec<(Vec<u32>, T)>) -> Self {
-        let mut root = NodeVar::empty();
+        let mut root = Trie::empty();
         for (k, v) in pairs {
-            let key = key_chain(k);
-            let mut node: &mut NodeVar<T> = &mut root;
+            let key = key_chain(&k);
+            let mut node: &mut Trie<T> = &mut root;
             for part in key.iter() {
                 if let Some(idx) = node.keys.iter_mut().position(|x| x == part) {
                     node = &mut node.nodes[idx];
                 } else {
                     node.keys.push(*part);
-                    node.nodes.push(NodeVar::empty());
+                    node.nodes.push(Trie::empty());
                     let new_len = node.nodes.len();
                     node = &mut node.nodes[new_len - 1];
                 }
@@ -25,21 +34,24 @@ impl<T: Clone> NodeVar<T> {
         root
     }
 
-    pub fn get(&self, k: Vec<u32>) -> Option<T> {
+    pub fn get(&self, k: &Vec<u32>) -> TrieMatch<T> {
         let key = key_chain(k);
         let mut node = self;
         for part in key.iter() {
             if let Some(idx) = node.keys.iter().position(|x| x == part) {
                 node = &node.nodes[idx];
             } else {
-                return None;
+                return TrieMatch::NoMatch;
             }
         }
-        node.val.clone()
+        match &node.val {
+            None => PartialMatch,
+            Some(val) => TrieMatch::Match(val.clone()),
+        }
     }
 
     fn empty() -> Self {
-        NodeVar {
+        Trie {
             keys: Vec::new(),
             nodes: Vec::new(),
             val: None,
@@ -47,7 +59,7 @@ impl<T: Clone> NodeVar<T> {
     }
 }
 
-fn key_chain(k: Vec<u32>) -> Vec<u8> {
+fn key_chain(k: &Vec<u32>) -> Vec<u8> {
     k.iter().fold(Vec::new(), |mut acc, n| {
         acc.extend(n.to_ne_bytes());
         acc
@@ -59,9 +71,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_get() {
-        let trie = NodeVar::from_kvs(vec![(vec![0x0, 0xFF], "Cas"), (vec![0xABC, 0xDEF], "Luna")]);
-        assert_eq!(trie.get(vec![0x0, 0xFF]), Some("Cas"));
-        assert_eq!(trie.get(vec![0xABC, 0xDEF]), Some("Luna"));
+    fn test_trie_get() {
+        let trie = Trie::from_kvs(vec![(vec![0x0, 0xFF], "Cas"), (vec![0xABC, 0xDEF], "Luna")]);
+        assert_eq!(trie.get(&vec![0x0, 0xFF]), TrieMatch::Match("Cas"));
+        assert_eq!(trie.get(&vec![0xABC, 0xDEF]), TrieMatch::Match("Luna"));
+
+        assert_eq!(trie.get(&vec![0x0]), TrieMatch::PartialMatch);
+        assert_eq!(trie.get(&vec![0xABC]), TrieMatch::PartialMatch);
+
+        assert_eq!(trie.get(&vec![0xDEF]), TrieMatch::NoMatch);
     }
 }
