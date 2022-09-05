@@ -1,7 +1,7 @@
 with (import <unstable> {});
 
 mkShell rec {
-  name = "casql";
+  name = "unicode-study";
 
   nativeBuildInputs = [ rustc cargo gcc ];
   buildInputs = [  clippy rustfmt ];

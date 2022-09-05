@@ -1,5 +1,8 @@
 use crate::trie::TrieMatch::PartialMatch;
 
+// TODO: Incomplete implementation of an AdaptiveTrie. It should use arrays for
+// the nodes that have 255 keys. As it is, it's still fast enough to do
+// the partial matches to test the collation algorithm.
 pub struct Trie<T: Clone> {
     keys: Vec<u8>,
     nodes: Vec<Trie<T>>,
